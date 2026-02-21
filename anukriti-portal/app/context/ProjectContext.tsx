@@ -1,7 +1,8 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-const API_BASE = 'http://localhost:8003';
+// Ensure NEXT_PUBLIC_API_URL does not have a trailing slash
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8003').replace(/\/$/, '');
 
 // ─── Types ───────────────────────────────
 export interface Constraint {
