@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  anukriti-core:
+    build: 
+      context: ./anukriti-core
+      dockerfile: Dockerfile
+    container_name: anukriti-core
+    ports:
+      - "8003:8003"
+    environment:
+      - ENV=production
+    restart: unless-stopped
+    networks:
+      - anukriti-net
+
+  anukriti-portal:
+    build:
+      context: ./anukriti-portal
+      dockerfile: Dockerfile
+    container_name: anukriti-portal
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8003
+    depends_on:
+      - anukriti-core
+    restart: unless-stopped
+    networks:
+      - anukriti-net
+
+networks:
+  anukriti-net:
+    driver: bridge
