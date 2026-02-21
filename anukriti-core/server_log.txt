@@ -213,3 +213,115 @@ INFO:     127.0.0.1:34174 - "GET / HTTP/1.1" 200 OK
 INFO:     127.0.0.1:34792 - "GET / HTTP/1.1" 200 OK
 INFO:     127.0.0.1:42358 - "GET / HTTP/1.1" 200 OK
 INFO:     127.0.0.1:53576 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43502 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42020 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48684 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41584 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48372 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39360 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56954 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46266 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45022 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34734 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33354 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48630 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44980 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56856 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59346 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33562 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48996 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36648 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52404 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48914 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49672 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54728 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38404 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47802 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48036 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59564 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46536 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58058 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52166 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48994 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57220 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35308 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48426 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35784 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54828 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45308 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37738 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37696 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48822 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35562 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38894 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52424 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47258 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39772 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37424 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55084 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52296 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50578 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44678 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45336 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60218 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43838 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53630 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59218 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45496 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39170 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44834 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55282 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57178 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43520 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37422 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43166 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33512 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42380 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42392 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42392 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39298 - "GET /system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36078 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36082 - "OPTIONS /workflow/generate-requirements HTTP/1.1" 200 OK
+[RequirementEngine] 🧠 Calling Groq (llama-3.1-8b-instant)...
+[RequirementEngine] ✅ LLM responded (2420 chars)
+INFO:     127.0.0.1:36096 - "POST /workflow/generate-requirements HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36082 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36082 - "GET /projects/PROJ-83E253 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36082 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36082 - "GET /system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47824 - "OPTIONS /workflow/build-graph HTTP/1.1" 200 OK
+[GraphBuilder] 🧠 Calling LLM for architecture extraction...
+[GraphBuilder] ✅ LLM returned 6 components, 7 edges
+INFO:     127.0.0.1:47840 - "POST /workflow/build-graph HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47840 - "GET /projects/PROJ-83E253 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47840 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47840 - "GET /system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47846 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47840 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57006 - "OPTIONS /workflow/simulate HTTP/1.1" 200 OK
+[SimulationManager] 🔧 Starting simulation for: Test
+[SimulationManager] 🧠 Calling LLM for simulation planning...
+[SimulationManager] ✅ LLM selected 6 simulation models
+[SimulationManager] ⚡ Running 6 physics models...
+[SimulationManager] ✅ Simulation completed in 0.163s
+[SimulationManager]    Channels: ['voice_guided_cpr_raw_signal', 'voice_guided_cpr_quantized', 'patient_rhythm_analysis_voltage', 'patient_rhythm_analysis_current', 'patient_rhythm_analysis_power_dissipation', 'defibrillator_battery_voltage', 'defibrillator_battery_soc', 'defibrillator_battery_power', 'water_resistance_temperature', 'patient_contact_leakage_current', 'patient_contact_temperature', 'battery_shelf_life_raw_signal', 'battery_shelf_life_quantized']
+[SimulationManager] 💾 Results saved: ../repos/anukriti-sim/results/test_sim.csv
+INFO:     127.0.0.1:57022 - "POST /workflow/simulate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57022 - "GET /projects/PROJ-83E253 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57022 - "GET /projects HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57022 - "GET /system/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57268 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57272 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55512 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55516 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47748 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47750 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51236 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51242 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32780 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32796 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47622 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60706 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50982 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49786 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55994 - "GET / HTTP/1.1" 200 OK
