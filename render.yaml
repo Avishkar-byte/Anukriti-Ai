@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: anukriti-core
+    env: docker
+    region: ohio
+    plan: free
+    dockerContext: ./anukriti-core
+    dockerfilePath: ./anukriti-core/Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+        
+  - type: web
+    name: anukriti-portal
+    env: docker
+    region: ohio
+    plan: free
+    dockerContext: ./anukriti-portal
+    dockerfilePath: ./anukriti-portal/Dockerfile
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: anukriti-core
+          envVarKey: RENDER_EXTERNAL_URL
