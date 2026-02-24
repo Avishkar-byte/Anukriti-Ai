@@ -1,10 +1,13 @@
-from typing import List, Dict
+from typing import Dict, List
+
 from pydantic import BaseModel
 
+
 class TraceLink(BaseModel):
-    source_id: str # e.g., REQ-001
-    target_id: str # e.g., COMP-BATTERY
-    type: str # e.g., "satisfies", "verifies"
+    source_id: str  # e.g., REQ-001
+    target_id: str  # e.g., COMP-BATTERY
+    type: str  # e.g., "satisfies", "verifies"
+
 
 class TraceabilityEngine:
     def __init__(self):

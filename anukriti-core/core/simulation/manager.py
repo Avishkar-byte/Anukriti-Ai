@@ -5,10 +5,12 @@ Simulation Manager — orchestrates the full simulation pipeline:
 3. Returns real computed data
 """
 
-import os
 import json
-from typing import Dict, Any, List
+import os
+from typing import Any, Dict
+
 from dotenv import load_dotenv
+
 from .engine import NumericalEngine, SimulationConfig, SimulationResult
 
 load_dotenv()
@@ -65,6 +67,7 @@ class SimulationManager:
         if api_key and api_key != "your_groq_api_key_here":
             try:
                 from groq import Groq
+
                 self.client = Groq(api_key=api_key)
                 self.model = model_name
                 self.llm_enabled = True
@@ -74,7 +77,9 @@ class SimulationManager:
         else:
             print("[SimulationManager] ⚠️ No API key — using default simulation config")
 
-    async def run_simulation(self, config: Dict[str, Any]) -> Dict[str, Any]:
+    async def run_simulation(
+        self, config: Dict[str, Any], overrides: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
         """
         Full simulation pipeline:
         1. Use LLM to generate simulation config from requirements
@@ -88,14 +93,20 @@ class SimulationManager:
         print(f"[SimulationManager] 🔧 Starting simulation for: {device_name}")
 
         # Step 1: Generate simulation config
-        sim_config = await self._generate_sim_config(device_name, requirements, parameters)
+        sim_config = await self._generate_sim_config(
+            device_name, requirements, parameters, overrides
+        )
 
         # Step 2: Run actual numerical simulation
-        print(f"[SimulationManager] ⚡ Running {len(sim_config.models)} physics models...")
+        print(
+            f"[SimulationManager] ⚡ Running {len(sim_config.models)} physics models..."
+        )
         result = self.engine.run(sim_config)
-        print(f"[SimulationManager] ✅ Simulation completed in {result.duration_seconds}s")
+        print(
+            f"[SimulationManager] ✅ Simulation completed in {result.duration_seconds}s"
+        )
         print(f"[SimulationManager]    Channels: {list(result.channels.keys())}")
-        
+
         if result.warnings:
             for w in result.warnings:
                 print(f"[SimulationManager]    {w}")
@@ -116,30 +127,36 @@ class SimulationManager:
         }
 
     async def _generate_sim_config(
-        self, device_name: str, requirements: list, parameters: list
+        self,
+        device_name: str,
+        requirements: list,
+        parameters: list,
+        overrides: Dict[str, Any] = None,
     ) -> SimulationConfig:
         """Use LLM to intelligently pick simulation models and parameters."""
         if self.llm_enabled and requirements:
-            return await self._llm_config(device_name, requirements)
+            return await self._llm_config(device_name, requirements, overrides)
         return self._default_config(device_name, parameters)
 
-    async def _llm_config(self, device_name: str, requirements: list) -> SimulationConfig:
+    async def _llm_config(
+        self, device_name: str, requirements: list, overrides: Dict[str, Any] = None
+    ) -> SimulationConfig:
         """Call LLM to generate simulation configuration."""
         try:
             req_lines = []
             for r in requirements:
                 constraints_parts = []
-                for c in r.get('constraints', []):
-                    desc = c.get('description', '')
-                    val = c.get('value', '')
-                    unit = c.get('unit', '')
+                for c in r.get("constraints", []):
+                    desc = c.get("description", "")
+                    val = c.get("value", "")
+                    unit = c.get("unit", "")
                     constraints_parts.append("%s: %s %s" % (desc, val, unit))
                 constraints_str = ", ".join(constraints_parts)
                 line = "- [%s] (%s) %s [Constraints: %s]" % (
-                    r.get('id', 'REQ'),
-                    r.get('category', 'General'),
-                    r.get('description', ''),
-                    constraints_str
+                    r.get("id", "REQ"),
+                    r.get("category", "General"),
+                    r.get("description", ""),
+                    constraints_str,
                 )
                 req_lines.append(line)
             req_text = "\n".join(req_lines)
@@ -151,37 +168,47 @@ Requirements:
 
 Generate a simulation configuration to verify these requirements."""
 
+            if overrides:
+                prompt += "\n\nCRITICAL OVERRIDES (Simulate failure or stress tests):\n"
+                for k, v in overrides.items():
+                    prompt += f"- {k}: {v}\n"
+                prompt += "You MUST inject these override parameters directly into the relevant matched models to simulate what-if scenarios."
+
             print(f"[SimulationManager] 🧠 Calling LLM for simulation planning...")
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": SIM_CONFIG_PROMPT},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.2,
                 max_tokens=2048,
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
 
             raw = response.choices[0].message.content
             data = json.loads(raw)
-            print(f"[SimulationManager] ✅ LLM selected {len(data.get('models', []))} simulation models")
+            print(
+                f"[SimulationManager] ✅ LLM selected {len(data.get('models', []))} simulation models"
+            )
 
             config = SimulationConfig(
                 device_name=data.get("device_name", device_name),
                 duration=data.get("duration", 10.0),
                 time_steps=data.get("time_steps", 500),
-                models=data.get("models", [])
+                models=data.get("models", []),
             )
 
             # Ensure at least leakage current for safety
             model_types = [m["type"] for m in config.models]
             if "leakage_current" not in model_types:
-                config.models.append({
-                    "type": "leakage_current",
-                    "name": "patient_safety",
-                    "params": {"base_leakage_ua": 8.0, "safety_limit_ua": 100.0}
-                })
+                config.models.append(
+                    {
+                        "type": "leakage_current",
+                        "name": "patient_safety",
+                        "params": {"base_leakage_ua": 8.0, "safety_limit_ua": 100.0},
+                    }
+                )
 
             return config
 
@@ -203,8 +230,8 @@ Generate a simulation configuration to verify these requirements."""
                         "nominal_voltage": 3.7,
                         "capacity_ah": 2.0,
                         "load_current": 0.3,
-                        "internal_resistance": 0.05
-                    }
+                        "internal_resistance": 0.05,
+                    },
                 },
                 {
                     "type": "thermal",
@@ -213,18 +240,15 @@ Generate a simulation configuration to verify these requirements."""
                         "ambient_temp": 25.0,
                         "power_watts": 1.5,
                         "thermal_mass": 40.0,
-                        "max_safe_temp": 42.0
-                    }
+                        "max_safe_temp": 42.0,
+                    },
                 },
                 {
                     "type": "leakage_current",
                     "name": "patient_safety",
-                    "params": {
-                        "base_leakage_ua": 8.0,
-                        "safety_limit_ua": 100.0
-                    }
-                }
-            ]
+                    "params": {"base_leakage_ua": 8.0, "safety_limit_ua": 100.0},
+                },
+            ],
         )
 
     def _save_results(self, device_name: str, result: SimulationResult) -> str:
@@ -239,7 +263,7 @@ Generate a simulation configuration to verify these requirements."""
         # Build CSV with time + all channels
         with open(result_path, "w", newline="") as f:
             channel_names = list(result.channels.keys())
-            writer = csv.writer(f, delimiter=';')
+            writer = csv.writer(f, delimiter=";")
             writer.writerow(["time"] + channel_names)
 
             for i, t in enumerate(result.time_array):

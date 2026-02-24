@@ -3,9 +3,9 @@ LLM-powered 3D Device Model Generator.
 Takes architecture graph → asks LLM to design a 3D layout → returns structured JSON.
 """
 
-import os
 import json
-from typing import Dict, Any, List, Optional
+import os
+from typing import Any, Dict, List
 
 MODEL_3D_PROMPT = """You are a 3D CAD engineer designing schematic cutaway models of medical devices.
 Given a device name and its architecture components, generate a 3D model specification.
@@ -86,6 +86,7 @@ class DeviceModelGenerator:
         if api_key and api_key != "your_groq_api_key_here":
             try:
                 from groq import Groq
+
                 self.client = Groq(api_key=api_key)
                 self.model = model_name
                 self.llm_enabled = True
@@ -95,31 +96,41 @@ class DeviceModelGenerator:
         else:
             print("[3DModelGen] ⚠️ No API key — using fallback 3D model")
 
-    def generate(self, device_name: str, components: List[Dict], edges: List[Dict]) -> Dict[str, Any]:
+    def generate(
+        self, device_name: str, components: List[Dict], edges: List[Dict]
+    ) -> Dict[str, Any]:
         """Generate 3D model spec from architecture graph."""
         if self.llm_enabled:
             return self._generate_with_llm(device_name, components, edges)
         return self._fallback_model(device_name, components)
 
-    def _generate_with_llm(self, device_name: str, components: List[Dict], edges: List[Dict]) -> Dict[str, Any]:
+    def _generate_with_llm(
+        self, device_name: str, components: List[Dict], edges: List[Dict]
+    ) -> Dict[str, Any]:
         try:
-            comp_text = "\n".join([
-                "- %s (type: %s, properties: %s)" % (
-                    c.get("label", c.get("id", "?")),
-                    c.get("type", "Component"),
-                    json.dumps(c.get("properties", {}))
-                )
-                for c in components
-            ])
+            comp_text = "\n".join(
+                [
+                    "- %s (type: %s, properties: %s)"
+                    % (
+                        c.get("label", c.get("id", "?")),
+                        c.get("type", "Component"),
+                        json.dumps(c.get("properties", {})),
+                    )
+                    for c in components
+                ]
+            )
 
-            edge_text = "\n".join([
-                "- %s → %s (relation: %s)" % (
-                    e.get("source", ""),
-                    e.get("target", ""),
-                    e.get("relation", "connected_to")
-                )
-                for e in edges[:20]  # Limit to prevent token overflow
-            ])
+            edge_text = "\n".join(
+                [
+                    "- %s → %s (relation: %s)"
+                    % (
+                        e.get("source", ""),
+                        e.get("target", ""),
+                        e.get("relation", "connected_to"),
+                    )
+                    for e in edges[:20]  # Limit to prevent token overflow
+                ]
+            )
 
             prompt = """Device: %s
 
@@ -129,18 +140,22 @@ Architecture Components:
 Connections:
 %s
 
-Generate a detailed 3D cutaway model specification for this device.""" % (device_name, comp_text, edge_text)
+Generate a detailed 3D cutaway model specification for this device.""" % (
+                device_name,
+                comp_text,
+                edge_text,
+            )
 
             print("[3DModelGen] 🧠 Calling LLM for 3D model generation...")
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": MODEL_3D_PROMPT},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.3,
                 max_tokens=3000,
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
 
             raw = response.choices[0].message.content
@@ -148,7 +163,10 @@ Generate a detailed 3D cutaway model specification for this device.""" % (device
 
             n_parts = len(data.get("parts", []))
             n_connections = len(data.get("connections", []))
-            print("[3DModelGen] ✅ Generated: %d parts, %d connections" % (n_parts, n_connections))
+            print(
+                "[3DModelGen] ✅ Generated: %d parts, %d connections"
+                % (n_parts, n_connections)
+            )
 
             # Validate and sanitize
             data = self._sanitize(data, device_name)
@@ -165,7 +183,15 @@ Generate a detailed 3D cutaway model specification for this device.""" % (device
         data.setdefault("parts", [])
         data.setdefault("connections", [])
 
-        valid_shapes = {"box", "cylinder", "sphere", "cone", "torus", "plane", "capsule"}
+        valid_shapes = {
+            "box",
+            "cylinder",
+            "sphere",
+            "cone",
+            "torus",
+            "plane",
+            "capsule",
+        }
 
         for part in data["parts"]:
             part.setdefault("id", "part_%d" % data["parts"].index(part))
@@ -182,22 +208,24 @@ Generate a detailed 3D cutaway model specification for this device.""" % (device
 
     def _fallback_model(self, device_name: str, components: List[Dict]) -> Dict:
         """Generate a basic model without LLM."""
-        parts = [{
-            "id": "housing",
-            "label": "%s Housing" % device_name,
-            "shape": "box",
-            "params": {"width": 6, "height": 8, "depth": 3},
-            "position": [0, 0, 0],
-            "rotation": [0, 0, 0],
-            "color": "#ffffff",
-            "opacity": 0.1,
-            "metalness": 0.3,
-        }]
+        parts = [
+            {
+                "id": "housing",
+                "label": "%s Housing" % device_name,
+                "shape": "box",
+                "params": {"width": 6, "height": 8, "depth": 3},
+                "position": [0, 0, 0],
+                "rotation": [0, 0, 0],
+                "color": "#ffffff",
+                "opacity": 0.1,
+                "metalness": 0.3,
+            }
+        ]
 
         y_offset = -3
         for i, comp in enumerate(components[:10]):
             label = comp.get("label", comp.get("id", "Part %d" % i))
-            comp_type = comp.get("type", "").lower()
+            comp.get("type", "").lower()
 
             if "battery" in label.lower() or "power" in label.lower():
                 color = "#4ade80"
@@ -205,24 +233,34 @@ Generate a detailed 3D cutaway model specification for this device.""" % (device
                 color = "#f59e0b"
             elif "display" in label.lower() or "screen" in label.lower():
                 color = "#06b6d4"
-            elif "motor" in label.lower() or "pump" in label.lower() or "actuator" in label.lower():
+            elif (
+                "motor" in label.lower()
+                or "pump" in label.lower()
+                or "actuator" in label.lower()
+            ):
                 color = "#a78bfa"
-            elif "wireless" in label.lower() or "bluetooth" in label.lower() or "comm" in label.lower():
+            elif (
+                "wireless" in label.lower()
+                or "bluetooth" in label.lower()
+                or "comm" in label.lower()
+            ):
                 color = "#ec4899"
             else:
                 color = "#60a5fa"
 
             col = (i % 2) * 2 - 1  # -1 or 1
-            parts.append({
-                "id": comp.get("id", "comp_%d" % i),
-                "label": label,
-                "shape": "box",
-                "params": {"width": 2, "height": 1.2, "depth": 1.5},
-                "position": [col * 1.2, y_offset, 0],
-                "rotation": [0, 0, 0],
-                "color": color,
-                "opacity": 0.9,
-            })
+            parts.append(
+                {
+                    "id": comp.get("id", "comp_%d" % i),
+                    "label": label,
+                    "shape": "box",
+                    "params": {"width": 2, "height": 1.2, "depth": 1.5},
+                    "position": [col * 1.2, y_offset, 0],
+                    "rotation": [0, 0, 0],
+                    "color": color,
+                    "opacity": 0.9,
+                }
+            )
             if i % 2 == 1:
                 y_offset += 2
 

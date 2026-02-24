@@ -1,6 +1,8 @@
-from typing import List, Dict, Optional, Any
 from enum import Enum
-from pydantic import BaseModel, Field
+from typing import Any, Dict, List
+
+from pydantic import BaseModel
+
 
 class NodeType(str, Enum):
     COMPONENT = "Component"
@@ -9,6 +11,7 @@ class NodeType(str, Enum):
     INPUT = "Input"
     OUTPUT = "Output"
 
+
 class GraphNode(BaseModel):
     id: str
     type: NodeType
@@ -16,10 +19,12 @@ class GraphNode(BaseModel):
     properties: Dict[str, Any] = {}
     trace_req_ids: List[str] = []
 
+
 class GraphEdge(BaseModel):
     source: str
     target: str
     relation: str
+
 
 class SystemGraph(BaseModel):
     nodes: List[GraphNode]

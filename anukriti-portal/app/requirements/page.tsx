@@ -5,13 +5,14 @@ import Layout from '../components/Layout';
 import { useProject, Requirement } from '../context/ProjectContext';
 import GlassCard from '../components/ui/GlassCard';
 import PrimaryButton from '../components/ui/PrimaryButton';
-import { Search, Sparkles, Layers } from 'lucide-react';
+import { Search, Sparkles, Layers, ShieldCheck, AlertTriangle, ShieldAlert } from 'lucide-react';
 
 export default function Requirements() {
-    const { activeProject, generateRequirements, loading } = useProject();
+    const { activeProject, generateRequirements, checkCompliance, loading } = useProject();
     const [intent, setIntent] = useState('');
     const [requirements, setRequirements] = useState<Requirement[]>([]);
     const [activeFilter, setActiveFilter] = useState<string>('All');
+    const [checkingCompliance, setCheckingCompliance] = useState(false);
 
     const handleGenerate = async () => {
         if (!activeProject) {
@@ -21,6 +22,13 @@ export default function Requirements() {
         const useIntent = intent.trim() || activeProject.device_description;
         const reqs = await generateRequirements(useIntent);
         if (reqs) setRequirements(reqs);
+    };
+
+    const handleComplianceCheck = async () => {
+        if (!activeProject) return;
+        setCheckingCompliance(true);
+        await checkCompliance();
+        setCheckingCompliance(false);
     };
 
     const displayReqs = requirements.length > 0
@@ -94,8 +102,8 @@ export default function Requirements() {
                                 key={cat}
                                 onClick={() => setActiveFilter(cat)}
                                 className={`px-4 py-1.5 rounded-full text-xs font-medium border transition-all flex-shrink-0 ${activeFilter === cat
-                                        ? 'bg-accent-violet/20 border-accent-violet/50 text-accent-violet shadow-[0_0_10px_rgba(155,124,255,0.2)]'
-                                        : 'bg-glass border-glass-border text-muted-text hover:bg-white/5 hover:text-white'
+                                    ? 'bg-accent-violet/20 border-accent-violet/50 text-accent-violet shadow-[0_0_10px_rgba(155,124,255,0.2)]'
+                                    : 'bg-glass border-glass-border text-muted-text hover:bg-white/5 hover:text-white'
                                     }`}
                             >
                                 {cat}
@@ -104,6 +112,65 @@ export default function Requirements() {
                                 </span>}
                             </button>
                         ))}
+                    </div>
+                )}
+
+                {/* Compliance Report Section */}
+                {activeProject?.compliance && (
+                    <GlassCard className="p-6 border-accent-cyan/20">
+                        <div className="flex items-center space-x-4 mb-6">
+                            <div className="w-12 h-12 rounded-full border-4 flex items-center justify-center font-bold text-lg"
+                                style={{ borderColor: activeProject.compliance.compliance_score > 80 ? '#22c55e' : '#f59e0b', color: activeProject.compliance.compliance_score > 80 ? '#22c55e' : '#f59e0b' }}>
+                                {activeProject.compliance.compliance_score}
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold flex items-center text-white">
+                                    <ShieldCheck className="w-5 h-5 mr-2 text-accent-cyan" />
+                                    Regulatory Compliance Audit
+                                </h3>
+                                <p className="text-muted-text text-sm mt-1">{activeProject.compliance.summary}</p>
+                            </div>
+                        </div>
+
+                        {activeProject.compliance.issues?.length > 0 && (
+                            <div className="space-y-3">
+                                {activeProject.compliance.issues.map((issue: any, i: number) => (
+                                    <div key={i} className="bg-deep-graphite/50 p-4 rounded-xl border border-white/5 shadow-inner">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex items-center space-x-2">
+                                                {issue.severity === 'High' ? (
+                                                    <ShieldAlert className="w-4 h-4 text-status-error" />
+                                                ) : (
+                                                    <AlertTriangle className="w-4 h-4 text-status-warning" />
+                                                )}
+                                                <span className="text-white text-sm font-bold">{issue.requirement_id}</span>
+                                                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${issue.severity === 'High' ? 'border-status-error text-status-error bg-status-error/10' : 'border-status-warning text-status-warning bg-status-warning/10'}`}>
+                                                    {issue.severity} Risk
+                                                </span>
+                                            </div>
+                                            <span className="text-xs text-muted-text/70">{issue.applicable_standard}</span>
+                                        </div>
+                                        <p className="text-sm text-gray-300 mb-2">{issue.description}</p>
+                                        <div className="text-xs text-accent-cyan bg-accent-cyan/10 p-2 rounded-lg inline-block">
+                                            <span className="font-bold">Recommendation:</span> {issue.recommendation}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </GlassCard>
+                )}
+
+                {displayReqs.length > 0 && !activeProject?.compliance && (
+                    <div className="flex justify-end">
+                        <PrimaryButton
+                            onClick={handleComplianceCheck}
+                            disabled={checkingCompliance}
+                            icon={checkingCompliance ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin block" /> : <ShieldCheck size={16} />}
+                            className={`!bg-white/5 border border-white/10 hover:!bg-white/10 ${checkingCompliance ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {checkingCompliance ? 'Running LLM Audit...' : 'Run Regulatory Compliance Audit (IEC 60601)'}
+                        </PrimaryButton>
                     </div>
                 )}
 
@@ -130,8 +197,8 @@ export default function Requirements() {
                                             {req.id}
                                         </div>
                                         <span className={`text-[10px] px-2 py-1 rounded-md border uppercase tracking-widest ${req.safety_class === 'C' ? 'bg-status-error/10 text-status-error border-status-error/20' :
-                                                req.safety_class === 'B' ? 'bg-status-warning/10 text-status-warning border-status-warning/20' :
-                                                    'bg-status-success/10 text-status-success border-status-success/20'
+                                            req.safety_class === 'B' ? 'bg-status-warning/10 text-status-warning border-status-warning/20' :
+                                                'bg-status-success/10 text-status-success border-status-success/20'
                                             }`}>
                                             Class {req.safety_class}
                                         </span>

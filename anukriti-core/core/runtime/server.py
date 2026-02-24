@@ -3,14 +3,17 @@ Runtime Digital Twin inference — loads REAL trained models.
 """
 
 import os
+from typing import Any, Dict
+
 import numpy as np
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/runtime", tags=["Runtime Digital Twin"])
 
-MODELS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "models")
+MODELS_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "..", "models"
+)
 
 # Cache loaded models
 _loaded_models: Dict[str, Any] = {}
@@ -39,6 +42,7 @@ def _load_model(model_id: str):
 
     try:
         import joblib
+
         data = joblib.load(model_path)
         _loaded_models[model_id] = data
         print("[Runtime] ✅ Loaded model: %s" % model_id)
@@ -60,7 +64,8 @@ async def infer(request: InferenceRequest):
         # Fallback if model not found — be honest about it
         raise HTTPException(
             404,
-            detail="Model '%s' not found. Train a digital twin first." % request.model_id
+            detail="Model '%s' not found. Train a digital twin first."
+            % request.model_id,
         )
 
     try:
@@ -101,7 +106,7 @@ async def infer(request: InferenceRequest):
             model_id=request.model_id,
             prediction=predictions,
             confidence=round(overall_confidence, 4),
-            model_type="GradientBoosting+MLP Ensemble"
+            model_type="GradientBoosting+MLP Ensemble",
         )
 
     except Exception as e:

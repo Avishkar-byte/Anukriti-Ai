@@ -13,22 +13,22 @@ Pipeline:
 
 import os
 import time
-import json
-import numpy as np
-from typing import Dict, Any, List, Tuple
+from typing import Any, Dict, List, Tuple
+
 import joblib
+import numpy as np
 from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.neural_network import MLPRegressor
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler
 
-from core.simulation.manager import SimulationManager
 from adapters.anukritireq_to_medet import convert_req_to_medet_config
-from adapters.anukriti_sim_to_medet import convert_sim_output_to_medet
+from core.simulation.manager import SimulationManager
 
-
-MODELS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "models")
+MODELS_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "..", "models"
+)
 
 
 class DigitalTwinModel:
@@ -45,7 +45,13 @@ class DigitalTwinModel:
         self.feature_names: List[str] = []
         self.metadata: Dict[str, Any] = {}
 
-    def train(self, X: np.ndarray, y: np.ndarray, target_names: List[str], feature_names: List[str]) -> Dict[str, Any]:
+    def train(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        target_names: List[str],
+        feature_names: List[str],
+    ) -> Dict[str, Any]:
         """
         Train ensemble models for each output channel.
         Returns real evaluation metrics.
@@ -84,7 +90,7 @@ class DigitalTwinModel:
                 max_depth=3,
                 learning_rate=0.1,
                 subsample=0.8,
-                random_state=42
+                random_state=42,
             )
             gb.fit(X_train_scaled, y_tr)
             self.gb_models[target] = gb
@@ -92,14 +98,14 @@ class DigitalTwinModel:
             # 2. MLP (captures complex patterns)
             mlp = MLPRegressor(
                 hidden_layer_sizes=(32, 16),
-                activation='relu',
-                solver='adam',
+                activation="relu",
+                solver="adam",
                 learning_rate_init=0.01,
                 max_iter=100,
                 early_stopping=True,
                 validation_fraction=0.15,
                 n_iter_no_change=10,
-                random_state=42
+                random_state=42,
             )
             mlp.fit(X_train_scaled, y_tr)
             self.mlp_models[target] = mlp
@@ -139,7 +145,8 @@ class DigitalTwinModel:
             }
 
             train_log.append(
-                "  %s → R²=%.4f, MAE=%.6f, Accuracy=%.2f%%" % (target, r2, mae, accuracy * 100)
+                "  %s → R²=%.4f, MAE=%.6f, Accuracy=%.2f%%"
+                % (target, r2, mae, accuracy * 100)
             )
 
         train_duration = round(time.time() - train_start, 3)
@@ -159,7 +166,8 @@ class DigitalTwinModel:
         }
 
         train_log.append(
-            "Overall ensemble accuracy: %.2f%% (trained in %.2fs)" % (overall_accuracy * 100, train_duration)
+            "Overall ensemble accuracy: %.2f%% (trained in %.2fs)"
+            % (overall_accuracy * 100, train_duration)
         )
 
         return {
@@ -203,14 +211,18 @@ class DigitalTwinModel:
         model.metadata = data["metadata"]
         return model
 
-    def _top_features(self, gb: GradientBoostingRegressor, names: List[str], n: int) -> List[str]:
+    def _top_features(
+        self, gb: GradientBoostingRegressor, names: List[str], n: int
+    ) -> List[str]:
         """Get top N feature importances from GradientBoosting."""
         importances = gb.feature_importances_
         indices = np.argsort(importances)[::-1][:n]
         return [names[i] if i < len(names) else ("f_%d" % i) for i in indices]
 
 
-def _build_training_data(sim_result: Dict[str, Any]) -> Tuple[np.ndarray, np.ndarray, List[str], List[str]]:
+def _build_training_data(
+    sim_result: Dict[str, Any]
+) -> Tuple[np.ndarray, np.ndarray, List[str], List[str]]:
     """
     Convert simulation result channels into ML training data.
 
@@ -236,7 +248,7 @@ def _build_training_data(sim_result: Dict[str, Any]) -> Tuple[np.ndarray, np.nda
 
     # Polynomial basis: t, t^2, t^3
     for power in [1, 2, 3]:
-        features.append((t_norm ** power).reshape(-1, 1))
+        features.append((t_norm**power).reshape(-1, 1))
         feature_names.append("t^%d" % power)
 
     # Logarithmic: log(1 + t)
@@ -298,23 +310,25 @@ class TrainingPipeline:
         # ─── Step 1: Prepare simulation config ───
         pipeline_log.append("Step 1: Preparing simulation config from requirements...")
         medet_config = convert_req_to_medet_config(req_package)
-        print("[TrainingPipeline] ✅ MeDeT config: %d parameters extracted" % len(medet_config.get("parameters", [])))
+        print(
+            "[TrainingPipeline] ✅ MeDeT config: %d parameters extracted"
+            % len(medet_config.get("parameters", []))
+        )
 
         # ─── Step 2: Run REAL simulation ───
         pipeline_log.append("Step 2: Running physics simulation (numpy engine)...")
         sim_config = {
             "device_name": device_name,
             "requirements": [r.dict() for r in req_package.requirements],
-            "parameters": medet_config.get("parameters", [])
+            "parameters": medet_config.get("parameters", []),
         }
         sim_result = await self.sim_manager.run_simulation(sim_config)
 
         n_channels = len(sim_result.get("channels", {}))
         n_steps = sim_result.get("time_steps", 0)
         pipeline_log.append(
-            "  Simulation completed: %d channels, %d time steps (%.3fs)" % (
-                n_channels, n_steps, sim_result.get("duration_seconds", 0)
-            )
+            "  Simulation completed: %d channels, %d time steps (%.3fs)"
+            % (n_channels, n_steps, sim_result.get("duration_seconds", 0))
         )
         print("[TrainingPipeline] ✅ Simulation: %d channels generated" % n_channels)
 
@@ -325,8 +339,13 @@ class TrainingPipeline:
             pipeline_log.append(
                 "  Training matrix: X=%s, y=%s" % (str(X.shape), str(y.shape))
             )
-            pipeline_log.append("  Features: %d | Targets: %d" % (len(feature_names), len(target_names)))
-            print("[TrainingPipeline] ✅ Training data: X=%s y=%s" % (str(X.shape), str(y.shape)))
+            pipeline_log.append(
+                "  Features: %d | Targets: %d" % (len(feature_names), len(target_names))
+            )
+            print(
+                "[TrainingPipeline] ✅ Training data: X=%s y=%s"
+                % (str(X.shape), str(y.shape))
+            )
         except Exception as e:
             pipeline_log.append("  ERROR: %s" % str(e))
             return {
@@ -342,7 +361,10 @@ class TrainingPipeline:
 
         pipeline_log.extend(train_result["log"])
         metrics = train_result["metrics"]
-        print("[TrainingPipeline] ✅ Training complete: accuracy=%.2f%%" % (metrics["overall_accuracy"] * 100))
+        print(
+            "[TrainingPipeline] ✅ Training complete: accuracy=%.2f%%"
+            % (metrics["overall_accuracy"] * 100)
+        )
 
         # ─── Step 5: Save model ───
         clean_name = device_name.replace(" ", "_").lower()
@@ -354,7 +376,10 @@ class TrainingPipeline:
 
         model_size_kb = os.path.getsize(model_path) / 1024
         pipeline_log.append("  Model saved: %.1f KB" % model_size_kb)
-        print("[TrainingPipeline] ✅ Model saved: %s (%.1f KB)" % (model_path, model_size_kb))
+        print(
+            "[TrainingPipeline] ✅ Model saved: %s (%.1f KB)"
+            % (model_path, model_size_kb)
+        )
 
         # ─── Step 6: Quick inference test ───
         pipeline_log.append("Step 6: Verifying model with inference test...")
@@ -364,9 +389,7 @@ class TrainingPipeline:
         )
 
         pipeline_duration = round(time.time() - pipeline_start, 3)
-        pipeline_log.append(
-            "Pipeline complete in %.2fs" % pipeline_duration
-        )
+        pipeline_log.append("Pipeline complete in %.2fs" % pipeline_duration)
         print("[TrainingPipeline] ═══════════════════════════════════════")
         print("[TrainingPipeline] ✅ COMPLETE in %.2fs" % pipeline_duration)
         print("[TrainingPipeline] ═══════════════════════════════════════")

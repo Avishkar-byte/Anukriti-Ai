@@ -49,6 +49,7 @@ export interface Project {
     simulation: any;
     twin: any;
     model_3d: any;
+    compliance: any;
 }
 
 export interface Stats {
@@ -72,8 +73,10 @@ interface ProjectContextType {
     generateRequirements: (intent: string) => Promise<Requirement[] | null>;
     buildGraph: () => Promise<any>;
     runSimulation: () => Promise<any>;
+    runWhatIfSimulation: (overrides: Record<string, any>) => Promise<any>;
     trainTwin: () => Promise<any>;
     generate3DModel: () => Promise<any>;
+    checkCompliance: () => Promise<any>;
     refreshProjects: () => Promise<void>;
     refreshStats: () => Promise<void>;
 }
@@ -193,6 +196,22 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         finally { setLoading(false); }
     };
 
+    const checkCompliance = async () => {
+        if (!activeProject?.requirements) return null;
+        setLoading(true);
+        try {
+            const res = await fetch(`${API_BASE}/workflow/check-compliance`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(activeProject.requirements)
+            });
+            const data = await res.json();
+            await refreshActiveProject(activeProject.project_id);
+            return data;
+        } catch { return null; }
+        finally { setLoading(false); }
+    };
+
     const buildGraph = async () => {
         if (!activeProject?.requirements) return null;
         setLoading(true);
@@ -217,6 +236,28 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(activeProject.requirements)
+            });
+            const data = await res.json();
+            await refreshActiveProject(activeProject.project_id);
+            return data;
+        } catch { return null; }
+        finally { setLoading(false); }
+    };
+
+    const runWhatIfSimulation = async (overrides: Record<string, any>) => {
+        if (!activeProject?.requirements) return null;
+        setLoading(true);
+        try {
+            const payload = {
+                project_id: activeProject.project_id,
+                device_name: activeProject.name,
+                requirements: activeProject.requirements.requirements || activeProject.requirements,
+                overrides
+            };
+            const res = await fetch(`${API_BASE}/workflow/simulate-whatif`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
             const data = await res.json();
             await refreshActiveProject(activeProject.project_id);
@@ -265,7 +306,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         <ProjectContext.Provider value={{
             projects, activeProject, stats, loading, coreOnline,
             createProject, setActiveProject, generateRequirements,
-            buildGraph, runSimulation, trainTwin, generate3DModel, refreshProjects, refreshStats
+            buildGraph, runSimulation, runWhatIfSimulation, trainTwin, generate3DModel, checkCompliance, refreshProjects, refreshStats
         }}>
             {children}
         </ProjectContext.Provider>

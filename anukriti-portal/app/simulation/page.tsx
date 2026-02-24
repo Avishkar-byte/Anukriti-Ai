@@ -5,7 +5,7 @@ import Layout from '../components/Layout';
 import { useProject } from '../context/ProjectContext';
 import GlassCard from '../components/ui/GlassCard';
 import PrimaryButton from '../components/ui/PrimaryButton';
-import { Zap, Brain, Activity, Terminal, Database, ShieldAlert, Thermometer, AlertCircle, TrendingUp } from 'lucide-react';
+import { Zap, Brain, Activity, Terminal, Database, ShieldAlert, Thermometer, AlertCircle, TrendingUp, Sliders } from 'lucide-react';
 
 function ChannelChart({ name, values, unit, color }: { name: string; values: number[]; unit: string; color: string }) {
     if (!values || values.length === 0) return null;
@@ -86,10 +86,107 @@ function getChannelColor(channelName: string): string {
     return '#6272a4'; // default gray-purple
 }
 
+const renderLogLine = (line: string, i: number) => {
+    // Step Headers
+    if (line.startsWith("Step ")) {
+        return (
+            <div key={i} className="mt-4 mb-2 p-2 bg-accent-violet/10 border-l-2 border-accent-violet text-white font-bold text-[11px] rounded-r-md flex items-center">
+                <Terminal className="w-3 h-3 mr-2 text-accent-violet" />
+                {line}
+            </div>
+        );
+    }
+    // Metric rows
+    if (line.includes("→")) {
+        const [channel, metricsStr] = line.split("→");
+        const metrics = metricsStr.split(",").map(m => m.trim());
+        return (
+            <div key={i} className="my-1.5 p-2 bg-[#0a0d14]/80 border border-white/5 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-2 hover:border-white/10 transition-colors">
+                <div className="text-accent-cyan font-bold truncate flex items-center md:w-1/2 flex-shrink-0 text-[10px]">
+                    <Activity className="w-3 h-3 mr-1.5 opacity-50 flex-shrink-0" />
+                    <span className="truncate" title={channel.trim()}>{channel.trim()}</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 justify-end">
+                    {metrics.map((m, idx) => {
+                        const parts = m.split("=");
+                        if (parts.length === 2) {
+                            const [k, v] = parts;
+                            return (
+                                <span key={idx} className="bg-white/5 px-2 py-0.5 rounded text-[9px] flex items-center border border-white/5">
+                                    <span className="text-muted-text mr-1">{k.trim()}</span>
+                                    <span className="text-white font-mono">{v.trim()}</span>
+                                </span>
+                            );
+                        }
+                        return (
+                            <span key={idx} className="bg-white/5 px-2 py-0.5 rounded text-[9px] text-white font-mono border border-white/5">{m.trim()}</span>
+                        )
+                    })}
+                </div>
+            </div>
+        );
+    }
+    // Highlighted Success Lines
+    if (line.startsWith("Overall") || line.startsWith("Pipeline complete") || line.startsWith("Model saved:")) {
+        return (
+            <div key={i} className="my-3 p-2 bg-status-success/10 border border-status-success/20 text-status-success rounded-lg font-bold flex items-center shadow-[0_0_10px_rgba(80,250,123,0.1)] text-[10px]">
+                <Activity className="w-3 h-3 mr-2" />
+                {line}
+            </div>
+        );
+    }
+    // Highlighted Error Lines
+    if (line.startsWith("ERROR:") || line.includes("Critical failure") || line.includes("❌")) {
+        return (
+            <div key={i} className="my-3 p-2 bg-status-error/10 border border-status-error/20 text-status-error rounded-lg font-bold flex items-center shadow-[0_0_10px_rgba(255,85,85,0.1)] text-[10px]">
+                <ShieldAlert className="w-3 h-3 mr-2" />
+                {line}
+            </div>
+        );
+    }
+    // Hide individual "Training channel" prefix lines since metric rows cover them
+    if (line.startsWith("Training channel:") || line.startsWith("Trainer status:") || line.startsWith("Starting REAL Digital Twin")) {
+        return null;
+    }
+    // Detailed logs
+    if (line.startsWith("Data split:") || line.startsWith("Features:") || line.startsWith("Training matrix:") || line.startsWith("Simulation completed:") || line.startsWith("Inference test passed:")) {
+        return (
+            <div key={i} className="flex items-center space-x-2 my-1.5 text-muted-text bg-white/5 p-1.5 px-3 rounded text-[10px] border border-white/5">
+                <Database className="w-3 h-3 opacity-50 flex-shrink-0" />
+                <span className="leading-relaxed">{line}</span>
+            </div>
+        )
+    }
+
+    return (
+        <div key={i} className="flex items-start mb-1 text-gray-400 text-[10px]">
+            <span className="text-white/20 mr-2 select-none font-bold">❯</span>
+            <span className="leading-relaxed">{line.trim()}</span>
+        </div>
+    );
+};
+
 export default function Simulation() {
     const { activeProject, runSimulation, trainTwin, loading } = useProject();
     const [simResult, setSimResult] = useState<any>(null);
     const [simRunning, setSimRunning] = useState(false);
+
+    // What-If State
+    const { runWhatIfSimulation } = useProject();
+    const [overrideTemp, setOverrideTemp] = useState(25);
+    const [overrideBattery, setOverrideBattery] = useState(100);
+    const [whatIfRunning, setWhatIfRunning] = useState(false);
+
+    const handleRunWhatIf = async () => {
+        if (!activeProject) return;
+        setWhatIfRunning(true);
+        const data = await runWhatIfSimulation({
+            "ambient_temp": overrideTemp,
+            "battery_degradation_pct": 100 - overrideBattery
+        });
+        setWhatIfRunning(false);
+        if (data) setSimResult(data);
+    };
 
     // ML Training States
     const [training, setTraining] = useState(false);
@@ -172,9 +269,9 @@ export default function Simulation() {
                         <PrimaryButton
                             variant="secondary"
                             onClick={handleRunSimulation}
-                            disabled={simRunning || training || loading || !activeProject?.requirements}
+                            disabled={simRunning || whatIfRunning || training || loading || !activeProject?.requirements}
                             icon={simRunning ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin block" /> : <Zap size={16} className="text-accent-cyan" />}
-                            className={simRunning || training || loading || !activeProject?.requirements ? 'opacity-50 cursor-not-allowed text-white hover:text-white' : 'text-accent-cyan border-accent-cyan/30 hover:border-accent-cyan/60'}
+                            className={simRunning || whatIfRunning || training || loading || !activeProject?.requirements ? 'opacity-50 cursor-not-allowed text-white hover:text-white' : 'text-accent-cyan border-accent-cyan/30 hover:border-accent-cyan/60'}
                         >
                             {simRunning ? 'Computing...' : (simResult ? 'Restart Simulation' : 'Run Simulation')}
                         </PrimaryButton>
@@ -253,6 +350,56 @@ export default function Simulation() {
                         </motion.div>
                     )}
                 </AnimatePresence>
+
+                {/* What-If Scenario Testing */}
+                {simResult && (
+                    <GlassCard className="p-6 border-accent-violet/30 bg-accent-violet/5">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                            <div className="flex-1 space-y-4">
+                                <h3 className="text-lg font-bold text-white flex items-center">
+                                    <Sliders className="mr-2 text-accent-violet w-5 h-5" /> What-If Stress Testing
+                                </h3>
+                                <p className="text-sm text-muted-text">Inject extreme environmental variables into the physics engine to simulate device failure modes or hardware degradation.</p>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-white">External Temp</span>
+                                            <span className="text-accent-cyan font-mono">{overrideTemp}°C</span>
+                                        </div>
+                                        <input
+                                            type="range" min="0" max="80" value={overrideTemp}
+                                            onChange={(e) => setOverrideTemp(Number(e.target.value))}
+                                            className="w-full h-1.5 bg-deep-graphite rounded-lg appearance-none cursor-pointer accent-accent-cyan"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-white">Battery Health (End of Life)</span>
+                                            <span className="text-status-warning font-mono">{overrideBattery}%</span>
+                                        </div>
+                                        <input
+                                            type="range" min="10" max="100" value={overrideBattery}
+                                            onChange={(e) => setOverrideBattery(Number(e.target.value))}
+                                            className="w-full h-1.5 bg-deep-graphite rounded-lg appearance-none cursor-pointer accent-status-warning"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex-shrink-0 md:pl-6 border-t md:border-t-0 md:border-l border-white/10 pt-4 md:pt-0 flex flex-col justify-center">
+                                <PrimaryButton
+                                    onClick={handleRunWhatIf}
+                                    disabled={whatIfRunning || simRunning}
+                                    icon={whatIfRunning ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin block" /> : <Zap size={16} />}
+                                    className={`!bg-accent-violet hover:!bg-accent-violet/80 border-none ${whatIfRunning || simRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    {whatIfRunning ? 'Simulating Faults...' : 'Run Scenario Injection'}
+                                </PrimaryButton>
+                            </div>
+                        </div>
+                    </GlassCard>
+                )}
 
                 {/* Oscilloscope Channels */}
                 {channelNames.length > 0 && (
@@ -351,17 +498,12 @@ export default function Simulation() {
                                         {trainLog.length === 0 && !training ? (
                                             <p className="text-muted-text/50 italic flex items-center justify-center h-full">System idle. Initiate training sequence.</p>
                                         ) : (
-                                            trainLog.map((line, i) => (
-                                                <div key={i} className="flex items-start">
-                                                    <span className="text-accent-violet mr-3 select-none">❯</span>
-                                                    <span className="text-gray-300 leading-relaxed">{line}</span>
-                                                </div>
-                                            ))
+                                            trainLog.map((line, i) => renderLogLine(line, i))
                                         )}
                                         {training && (
                                             <div className="flex items-center text-accent-cyan mt-4 animate-pulse">
-                                                <span className="mr-3">❯</span>
-                                                <span className="w-2 h-4 bg-accent-cyan inline-block"></span>
+                                                <span className="mr-3 text-[10px] font-bold">❯</span>
+                                                <span className="w-1.5 h-3 bg-accent-cyan inline-block rounded-sm"></span>
                                             </div>
                                         )}
                                     </div>

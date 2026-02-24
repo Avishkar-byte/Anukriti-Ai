@@ -1,30 +1,31 @@
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+import time
+import traceback
+import uuid
+from typing import Any, Dict, List
+
+from dotenv import load_dotenv
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
-from typing import Dict, Any, List, Optional
-import json
-import traceback
-from dotenv import load_dotenv
-import uuid
-import time
+from pydantic import BaseModel
 
 load_dotenv()
 
+from core.compliance.engine import ComplianceEngine
+from core.graph.builder import GraphBuilder
 from core.requirements.engine import RequirementEngine
 from core.requirements.models import RequirementPackage
-from core.graph.builder import GraphBuilder
+from core.runtime.server import router as runtime_router
+from core.runtime.traceability import TraceabilityEngine
 from core.simulation.manager import SimulationManager
 from core.training.pipeline import TrainingPipeline
-from core.runtime.server import router as runtime_router
 from core.viz.bridge import router as viz_router
 from core.viz.model_generator import DeviceModelGenerator
-from core.runtime.traceability import TraceabilityEngine
 
 app = FastAPI(
     title="Anukriti AI Core",
     description="Orchestration Layer for Medical Device Digital Twins",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # CORS Configuration
@@ -43,20 +44,31 @@ sim_manager = SimulationManager()
 training_pipeline = TrainingPipeline()
 trace_engine = TraceabilityEngine()
 model_3d_gen = DeviceModelGenerator()
+compliance_engine = ComplianceEngine()
 
 # ──────────────────────────────────────────
 # In-memory Project Store
 # ──────────────────────────────────────────
 projects: Dict[str, Dict[str, Any]] = {}
 
+
 class ProjectCreate(BaseModel):
     name: str
     device_description: str
+
 
 class ProjectRequest(BaseModel):
     project_id: str
     device_name: str
     user_intent: str
+
+
+class WhatIfRequest(BaseModel):
+    project_id: str
+    device_name: str
+    requirements: List[Dict[str, Any]]
+    overrides: Dict[str, Any]
+
 
 # Include Routers
 app.include_router(runtime_router)
@@ -84,7 +96,7 @@ async def create_project(req: ProjectCreate):
         "graph": None,
         "simulation": None,
         "twin": None,
-        "status": "created"
+        "status": "created",
     }
     return projects[project_id]
 
@@ -137,33 +149,58 @@ async def generate_requirements(request: ProjectRequest):
     req_package = req_engine.generate_requirements(request.user_intent)
     req_package.project_id = request.project_id
     req_package.device_name = request.device_name
-    
+
     # Save to project store if project exists
     if request.project_id in projects:
         projects[request.project_id]["requirements"] = req_package.dict()
         projects[request.project_id]["status"] = "requirements_generated"
-    
+
     return req_package
+
+
+@app.post("/workflow/check-compliance")
+async def check_compliance(req_package: RequirementPackage):
+    """Step 1.5: Verify Requirements against ISO/IEC Standards (LLM)"""
+    report = compliance_engine.assess_compliance(req_package)
+
+    if req_package.project_id in projects:
+        projects[req_package.project_id]["compliance"] = report.dict()
+
+    return report
 
 
 @app.post("/workflow/build-graph")
 async def build_graph(req_package: RequirementPackage):
     """Step 2: Structured Requirements -> System Graph (LLM)"""
     graph = graph_builder.build_from_requirements(req_package)
-    
+
     # Update Traceability
     for node in graph.nodes:
         for req_id in node.trace_req_ids:
             trace_engine.add_link(req_id, node.id, "implemented_by")
-    
+
     graph_data = graph.dict()
-    
+
     # Save to project store if project exists
     if req_package.project_id in projects:
         projects[req_package.project_id]["graph"] = graph_data
         projects[req_package.project_id]["status"] = "architecture_built"
-    
+
     return graph_data
+
+
+@app.post("/workflow/simulate-whatif")
+async def run_whatif_simulation(request: WhatIfRequest):
+    """Run physics simulation with forced stress/failure parameters injected into the LLM."""
+    sim_config = {
+        "device_name": request.device_name,
+        "requirements": request.requirements,
+        "parameters": [],
+    }
+    sim_result = await sim_manager.run_simulation(
+        sim_config, overrides=request.overrides
+    )
+    return sim_result
 
 
 @app.post("/workflow/simulate")
@@ -173,9 +210,9 @@ async def run_simulation(req_package: RequirementPackage):
     sim_config = {
         "device_name": req_package.device_name,
         "requirements": [r.dict() for r in req_package.requirements],
-        "parameters": []
+        "parameters": [],
     }
-    
+
     # Extract parameters from constraints
     for req in req_package.requirements:
         for c in req.constraints:
@@ -193,13 +230,15 @@ async def run_simulation(req_package: RequirementPackage):
 
 
 @app.post("/workflow/train-twin")
-async def train_twin(req_package: RequirementPackage, background_tasks: BackgroundTasks):
+async def train_twin(
+    req_package: RequirementPackage, background_tasks: BackgroundTasks
+):
     """Step 4: Requirements -> Simulation -> Training -> Digital Twin"""
     # Run simulation first if not already done
     sim_config = {
         "device_name": req_package.device_name,
         "requirements": [r.dict() for r in req_package.requirements],
-        "parameters": []
+        "parameters": [],
     }
     for req in req_package.requirements:
         for c in req.constraints:
@@ -210,13 +249,22 @@ async def train_twin(req_package: RequirementPackage, background_tasks: Backgrou
 
     # Run training pipeline
     try:
-        print(f"[API] Calling train_digital_twin with req_package: {req_package.dict()}")
+        print(
+            f"[API] Calling train_digital_twin with req_package: {req_package.dict()}"
+        )
         result = await training_pipeline.train_digital_twin(req_package)
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         print(f"[API] Critical failure in train_digital_twin: {e}")
-        return {"status": "failed", "error": str(e), "pipeline_log": ["Critical failure during compilation. Check telemetry logs."]}
+        return {
+            "status": "failed",
+            "error": str(e),
+            "pipeline_log": [
+                "Critical failure during compilation. Check telemetry logs."
+            ],
+        }
 
     # Merge simulation metrics into result
     result["simulation_metrics"] = sim_result.get("metrics", {})
@@ -244,9 +292,7 @@ async def generate_3d_model(req_package: RequirementPackage):
     components = graph_data.get("nodes", []) if graph_data else []
     edges = graph_data.get("edges", []) if graph_data else []
 
-    model_spec = model_3d_gen.generate(
-        req_package.device_name, components, edges
-    )
+    model_spec = model_3d_gen.generate(req_package.device_name, components, edges)
 
     # Save to project store
     if req_package.project_id in projects:
@@ -266,21 +312,24 @@ async def get_stats():
     total = len(projects)
     total_reqs = sum(
         len(p.get("requirements", {}).get("requirements", []))
-        for p in projects.values() if p.get("requirements")
+        for p in projects.values()
+        if p.get("requirements")
     )
     sims_run = sum(1 for p in projects.values() if p.get("simulation"))
     twins_active = sum(1 for p in projects.values() if p.get("twin"))
-    
+
     return {
         "active_projects": total,
         "total_requirements": total_reqs,
         "simulations_run": sims_run,
-        "active_twins": twins_active
+        "active_twins": twins_active,
     }
 
 
 if __name__ == "__main__":
-    import uvicorn
     import os
+
+    import uvicorn
+
     port = int(os.environ.get("PORT", 8003))
     uvicorn.run("main:app", host="0.0.0.0", port=port)

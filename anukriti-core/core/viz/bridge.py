@@ -1,9 +1,10 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from typing import List, Dict, Any
 import asyncio
-import json
+from typing import Any, Dict, List
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 router = APIRouter(prefix="/viz", tags=["3D Visualization"])
+
 
 class ConnectionManager:
     def __init__(self):
@@ -20,20 +21,22 @@ class ConnectionManager:
         for connection in self.active_connections:
             await connection.send_json(message)
 
+
 manager = ConnectionManager()
+
 
 @router.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
     await manager.connect(websocket)
     try:
         while True:
-            data = await websocket.receive_text()
+            await websocket.receive_text()
             # Echo or process client events (e.g., user clicked a part)
             # data_json = json.loads(data)
             # await manager.broadcast(f"Client #{client_id} says: {data}")
-            pass
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+
 
 async def stream_simulation_data(simulation_id: str):
     """
@@ -44,10 +47,7 @@ async def stream_simulation_data(simulation_id: str):
             "type": "telemetry",
             "sim_id": simulation_id,
             "timestamp": i,
-            "values": {
-                "rpm": 1000 + i * 10,
-                "temperature": 35.0 + i * 0.1
-            }
+            "values": {"rpm": 1000 + i * 10, "temperature": 35.0 + i * 0.1},
         }
         await manager.broadcast(data_packet)
         await asyncio.sleep(0.1)

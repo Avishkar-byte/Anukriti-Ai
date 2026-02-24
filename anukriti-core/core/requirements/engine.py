@@ -1,13 +1,17 @@
-import os
 import json
+import os
 import uuid
 from typing import List
+
 from dotenv import load_dotenv
 from groq import Groq
 
 from .models import (
-    Requirement, RequirementPackage,
-    RequirementCategory, SafetyClass, Constraint
+    Constraint,
+    Requirement,
+    RequirementCategory,
+    RequirementPackage,
+    SafetyClass,
 )
 
 # Load environment variables from .env file
@@ -55,7 +59,9 @@ class RequirementEngine:
         self.llm_enabled = False
 
         if not api_key or api_key == "your_groq_api_key_here":
-            print("[RequirementEngine] ⚠️  GROQ_API_KEY not set — falling back to mock mode.")
+            print(
+                "[RequirementEngine] ⚠️  GROQ_API_KEY not set — falling back to mock mode."
+            )
         else:
             try:
                 self.client = Groq(api_key=api_key)
@@ -83,11 +89,14 @@ class RequirementEngine:
                 model=self.model,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": f"Generate requirements for this medical device:\n\n{project_context}"}
+                    {
+                        "role": "user",
+                        "content": f"Generate requirements for this medical device:\n\n{project_context}",
+                    },
                 ],
-                temperature=0.3,       # Low temp = more consistent, structured output
+                temperature=0.3,  # Low temp = more consistent, structured output
                 max_tokens=2048,
-                response_format={"type": "json_object"}   # Force JSON output
+                response_format={"type": "json_object"},  # Force JSON output
             )
 
             raw = response.choices[0].message.content
@@ -99,11 +108,13 @@ class RequirementEngine:
             return RequirementPackage(
                 project_id="LLM-GEN",
                 device_name="Medical Device",
-                requirements=requirements
+                requirements=requirements,
             )
 
         except json.JSONDecodeError as e:
-            print(f"[RequirementEngine] ❌ JSON parse error: {e} — falling back to mock")
+            print(
+                f"[RequirementEngine] ❌ JSON parse error: {e} — falling back to mock"
+            )
             return self._generate_mock(project_context)
         except Exception as e:
             print(f"[RequirementEngine] ❌ Groq API error: {e} — falling back to mock")
@@ -121,22 +132,26 @@ class RequirementEngine:
                 # Parse constraints
                 constraints = []
                 for c in r.get("constraints", []):
-                    constraints.append(Constraint(
-                        description=c.get("description", ""),
-                        value=c.get("value"),
-                        unit=c.get("unit"),
-                        tolerance=c.get("tolerance")
-                    ))
+                    constraints.append(
+                        Constraint(
+                            description=c.get("description", ""),
+                            value=c.get("value"),
+                            unit=c.get("unit"),
+                            tolerance=c.get("tolerance"),
+                        )
+                    )
 
-                requirements.append(Requirement(
-                    id=r.get("id", f"REQ-{uuid.uuid4().hex[:4].upper()}"),
-                    description=r.get("description", ""),
-                    category=category,
-                    safety_class=safety_class,
-                    constraints=constraints,
-                    source_document=r.get("source_document", "User_Intent"),
-                    trace_ids=[]
-                ))
+                requirements.append(
+                    Requirement(
+                        id=r.get("id", f"REQ-{uuid.uuid4().hex[:4].upper()}"),
+                        description=r.get("description", ""),
+                        category=category,
+                        safety_class=safety_class,
+                        constraints=constraints,
+                        source_document=r.get("source_document", "User_Intent"),
+                        trace_ids=[],
+                    )
+                )
             except Exception as e:
                 print(f"[RequirementEngine] ⚠️  Skipping malformed requirement: {e}")
                 continue
@@ -152,32 +167,43 @@ class RequirementEngine:
                 description="The system must operate continuously for 24 hours on battery.",
                 category=RequirementCategory.SYSTEM,
                 safety_class=SafetyClass.B,
-                constraints=[Constraint(description="Battery Duration", value=24.0, unit="hours")],
-                source_document="User_Intent"
+                constraints=[
+                    Constraint(description="Battery Duration", value=24.0, unit="hours")
+                ],
+                source_document="User_Intent",
             ),
             Requirement(
                 id=f"SAF-{uuid.uuid4().hex[:4].upper()}",
                 description="Leakage current must not exceed 100µA in normal condition.",
                 category=RequirementCategory.SAFETY,
                 safety_class=SafetyClass.C,
-                constraints=[Constraint(description="Leakage Current", value=100.0, unit="uA", tolerance=10.0)],
-                source_document="ISO_60601-1"
+                constraints=[
+                    Constraint(
+                        description="Leakage Current",
+                        value=100.0,
+                        unit="uA",
+                        tolerance=10.0,
+                    )
+                ],
+                source_document="ISO_60601-1",
             ),
             Requirement(
                 id=f"SW-{uuid.uuid4().hex[:4].upper()}",
                 description="Software shall detect and alert on occlusion within 5 seconds.",
                 category=RequirementCategory.SOFTWARE,
                 safety_class=SafetyClass.C,
-                constraints=[Constraint(description="Alert Latency", value=5.0, unit="seconds")],
-                source_document="IEC_62304"
+                constraints=[
+                    Constraint(description="Alert Latency", value=5.0, unit="seconds")
+                ],
+                source_document="IEC_62304",
             ),
         ]
         return RequirementPackage(
             project_id="MOCK-001",
             device_name="Medical Device Prototype",
-            requirements=reqs
+            requirements=reqs,
         )
 
     def _chunk_text(self, text: str, chunk_size: int = 500):
         """Utility for future RAG chunking."""
-        return [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+        return [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)]
