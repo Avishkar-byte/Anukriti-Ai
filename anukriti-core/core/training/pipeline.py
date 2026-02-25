@@ -13,6 +13,8 @@ Pipeline:
 
 import os
 import time
+import asyncio
+import functools
 from typing import Any, Dict, List, Tuple
 
 import joblib
@@ -343,7 +345,7 @@ class TrainingPipeline:
                 "  Features: %d | Targets: %d" % (len(feature_names), len(target_names))
             )
             print(
-                "[TrainingPipeline] ✅ Training data: X=%s y=%s"
+                "[TrainingPipeline] \u2705 Training data: X=%s y=%s"
                 % (str(X.shape), str(y.shape))
             )
         except Exception as e:
@@ -357,12 +359,16 @@ class TrainingPipeline:
         # ─── Step 4: Train surrogate model ───
         pipeline_log.append("Step 4: Training GradientBoosting + MLP ensemble...")
         model = DigitalTwinModel()
-        train_result = model.train(X, y, target_names, feature_names)
+        
+        # Run CPU-bound ML training in a background thread to not block the event loop
+        loop = asyncio.get_running_loop()
+        train_func = functools.partial(model.train, X, y, target_names, feature_names)
+        train_result = await loop.run_in_executor(None, train_func)
 
         pipeline_log.extend(train_result["log"])
         metrics = train_result["metrics"]
         print(
-            "[TrainingPipeline] ✅ Training complete: accuracy=%.2f%%"
+            "[TrainingPipeline] \u2705 Training complete: accuracy=%.2f%%"
             % (metrics["overall_accuracy"] * 100)
         )
 

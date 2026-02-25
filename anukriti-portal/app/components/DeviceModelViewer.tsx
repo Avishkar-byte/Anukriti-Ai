@@ -1,33 +1,18 @@
 "use client";
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
-// @ts-ignore — three.js examples import works at runtime
+// @ts-ignore
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-
-interface Part {
-    id: string;
-    label: string;
-    shape: string;
-    params: Record<string, number>;
-    position: [number, number, number];
-    rotation?: [number, number, number];
-    color: string;
-    opacity?: number;
-    metalness?: number;
-}
-
-interface Connection {
-    from: string;
-    to: string;
-    color?: string;
-    label?: string;
-}
+// @ts-ignore
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 interface DeviceModelSpec {
     device_name: string;
-    bounding_box?: [number, number, number];
-    parts: Part[];
-    connections: Connection[];
+    mesh_url?: string;
+    prompt_used?: string;
+    error?: string;
+    format?: string;
+    bounding_box?: number[];
 }
 
 interface Props {
@@ -72,11 +57,19 @@ export default function DeviceModelViewer({ modelSpec }: Props) {
     const containerRef = useRef<HTMLDivElement>(null);
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const sceneRef = useRef<THREE.Scene | null>(null);
+    const [loadingMesh, setLoadingMesh] = useState<boolean>(false);
+    const [error, setError] = useState<string | null>(modelSpec.error || null);
 
     useEffect(() => {
-        if (!containerRef.current || !modelSpec?.parts?.length) return;
+        if (!containerRef.current) return;
+
+        if (!modelSpec.mesh_url) {
+            setError(modelSpec.error || "No 3D model found");
+            return;
+        }
 
         const container = containerRef.current;
+        container.innerHTML = ''; // Clear previous renders
         const width = container.clientWidth;
         const height = container.clientHeight;
 
@@ -130,147 +123,64 @@ export default function DeviceModelViewer({ modelSpec }: Props) {
         rimLight.position.set(0, -5, 8);
         scene.add(rimLight);
 
-        // Ground grid
-        const grid = new THREE.GridHelper(20, 20, 0x1a1f2e, 0x0f1218);
-        grid.position.y = -(bb[1] / 2 + 1);
-        scene.add(grid);
+        // ─── Load Mesh ───
+        setLoadingMesh(true);
 
-        // Track part meshes for connections
-        const partPositions: Record<string, THREE.Vector3> = {};
+        const isGLB = modelSpec.mesh_url.toLowerCase().endsWith('.glb') || modelSpec.format === 'glb';
 
-        // ─── Build Parts ───
-        modelSpec.parts.forEach((part) => {
-            const geo = createGeometry(part.shape, part.params);
-            const isTransparent = (part.opacity ?? 1) < 1;
+        // Use GLTFLoader for Meshy (.glb), fallback to OBJLoader if ever needed
+        if (isGLB) {
+            const loader = new GLTFLoader();
+            loader.load(
+                modelSpec.mesh_url,
+                (gltf: any) => {
+                    setLoadingMesh(false);
+                    const object = gltf.scene;
 
-            const mat = new THREE.MeshStandardMaterial({
-                color: new THREE.Color(part.color || '#6b7280'),
-                transparent: isTransparent,
-                opacity: part.opacity ?? 1,
-                metalness: part.metalness ?? 0.4,
-                roughness: 0.5,
-                side: isTransparent ? THREE.DoubleSide : THREE.FrontSide,
-            });
+                    // Center and scale the mesh
+                    const box = new THREE.Box3().setFromObject(object);
+                    const size = box.getSize(new THREE.Vector3());
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const scale = 10 / maxDim; // Fit within 10 units
+                    object.scale.set(scale, scale, scale);
 
-            // Add emissive glow for non-transparent parts
-            if (!isTransparent) {
-                mat.emissive = new THREE.Color(part.color || '#6b7280');
-                mat.emissiveIntensity = 0.08;
-            }
+                    // Recalculate bounding box after scaling
+                    box.setFromObject(object);
+                    const center = box.getCenter(new THREE.Vector3());
+                    object.position.sub(center); // Center at origin
+                    object.position.y += Math.abs(box.min.y); // Place exactly on the grid
 
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.set(part.position[0], part.position[1], part.position[2]);
+                    // Enhance existing materials
+                    object.traverse((child: any) => {
+                        if (child instanceof THREE.Mesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
 
-            if (part.rotation) {
-                mesh.rotation.set(
-                    part.rotation[0] * Math.PI / 180,
-                    part.rotation[1] * Math.PI / 180,
-                    part.rotation[2] * Math.PI / 180
-                );
-            }
+                            // If material exists, just tweak it to look better in our lighting
+                            if (child.material) {
+                                child.material.envMapIntensity = 1.0;
+                                child.material.needsUpdate = true;
+                            }
+                        }
+                    });
 
-            mesh.castShadow = !isTransparent;
-            mesh.receiveShadow = true;
-            scene.add(mesh);
-
-            partPositions[part.id] = new THREE.Vector3(
-                part.position[0], part.position[1], part.position[2]
+                    scene.add(object);
+                },
+                (xhr: any) => {
+                    // Progress callback
+                    console.log(`${(xhr.loaded / xhr.total) * 100}% loaded`);
+                },
+                (err: any) => {
+                    console.error("Error loading GLB from Meshy", err);
+                    setLoadingMesh(false);
+                    setError("Failed to load 3D mesh.");
+                }
             );
-
-            // Wireframe overlay for transparent parts
-            if (isTransparent && (part.opacity ?? 1) < 0.3) {
-                const wireMat = new THREE.MeshBasicMaterial({
-                    color: new THREE.Color(part.color || '#ffffff'),
-                    wireframe: true,
-                    transparent: true,
-                    opacity: 0.15,
-                });
-                const wireMesh = new THREE.Mesh(geo.clone(), wireMat);
-                wireMesh.position.copy(mesh.position);
-                wireMesh.rotation.copy(mesh.rotation);
-                scene.add(wireMesh);
-            }
-
-            // Label sprite
-            if (part.label && !isTransparent) {
-                const canvas = document.createElement('canvas');
-                canvas.width = 512;
-                canvas.height = 128;
-                const ctx = canvas.getContext('2d')!;
-                // Background
-                ctx.fillStyle = 'rgba(11,15,20,0.85)';
-                ctx.beginPath();
-                ctx.roundRect(0, 0, 512, 128, 16);
-                ctx.fill();
-
-                // Border
-                ctx.strokeStyle = part.color || '#ffffff';
-                ctx.lineWidth = 4;
-                ctx.stroke();
-
-                // Component Label
-                ctx.fillStyle = part.color || '#ffffff';
-                ctx.font = 'bold 36px Inter, sans-serif';
-                ctx.textAlign = 'center';
-                const displayLabel = part.label.length > 22 ? part.label.substring(0, 20) + '...' : part.label;
-                ctx.fillText(displayLabel, 256, 56);
-
-                // Add component type in smaller text
-                ctx.fillStyle = '#9ca3af';
-                ctx.font = 'bold 24px Inter, sans-serif';
-                ctx.fillText(part.shape.toUpperCase(), 256, 96);
-
-                const tex = new THREE.CanvasTexture(canvas);
-                const spriteMat = new THREE.SpriteMaterial({
-                    map: tex,
-                    transparent: true,
-                    opacity: 0.95,
-                    depthTest: false // Ensures label always appears on top of mesh
-                });
-                const sprite = new THREE.Sprite(spriteMat);
-                const labelHeight = Math.max(part.params.height || 1, part.params.radius ? part.params.radius * 2 : 1);
-                sprite.position.set(
-                    part.position[0],
-                    part.position[1] + labelHeight / 2 + 0.8,
-                    part.position[2]
-                );
-                // Matched aspect ratio of 512x128
-                sprite.scale.set(4, 1, 1);
-                scene.add(sprite);
-            }
-        });
-
-        // ─── Build Connections ───
-        modelSpec.connections.forEach((conn) => {
-            const fromPos = partPositions[conn.from];
-            const toPos = partPositions[conn.to];
-            if (!fromPos || !toPos) return;
-
-            // Curved line between parts
-            const mid = new THREE.Vector3().addVectors(fromPos, toPos).multiplyScalar(0.5);
-            mid.y += 1.0; // Arc upward
-            mid.x += (Math.random() - 0.5) * 0.5; // Slight randomness
-
-            const curve = new THREE.QuadraticBezierCurve3(fromPos, mid, toPos);
-            const points = curve.getPoints(20);
-            const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-            const lineMat = new THREE.LineBasicMaterial({
-                color: new THREE.Color(conn.color || '#4b5563'),
-                transparent: true,
-                opacity: 0.5,
-            });
-            scene.add(new THREE.Line(lineGeo, lineMat));
-
-            // Small sphere at connection endpoints
-            const dotGeo = new THREE.SphereGeometry(0.08, 8, 8);
-            const dotMat = new THREE.MeshBasicMaterial({ color: conn.color || '#4b5563' });
-            const dot1 = new THREE.Mesh(dotGeo, dotMat);
-            dot1.position.copy(fromPos);
-            scene.add(dot1);
-            const dot2 = new THREE.Mesh(dotGeo.clone(), dotMat.clone());
-            dot2.position.copy(toPos);
-            scene.add(dot2);
-        });
+        } else {
+            console.error("Unsupported 3D format:", modelSpec.mesh_url);
+            setLoadingMesh(false);
+            setError("Unsupported mesh format.");
+        }
 
         // ─── Ambient particles ───
         const particleCount = 100;
@@ -315,5 +225,39 @@ export default function DeviceModelViewer({ modelSpec }: Props) {
         };
     }, [modelSpec]);
 
-    return <div ref={containerRef} className="w-full h-full" />;
+    if (error) {
+        return (
+            <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-status-error/5 border border-status-error/20 rounded-xl">
+                <div className="text-status-error font-bold mb-2 text-lg">3D Generation Failed</div>
+                <div className="text-gray-400 text-sm max-w-md text-center">{error}</div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="w-full h-full relative">
+            {loadingMesh && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-deep-graphite/40 backdrop-blur-sm">
+                    <div className="w-10 h-10 border-2 border-accent-cyan border-t-transparent rounded-full animate-spin mb-4" />
+                    <p className="text-accent-cyan font-mono text-xs uppercase tracking-widest">Generating with Meshy AI...</p>
+                    <p className="text-gray-400 text-[10px] mt-2 max-w-xs text-center">This typically takes 30-60 seconds. Do not refresh.</p>
+                </div>
+            )}
+
+            {/* Show LLM prompt used for generation */}
+            {modelSpec.prompt_used && (
+                <div className="absolute bottom-6 left-6 z-10 max-w-lg bg-deep-graphite/80 backdrop-blur-md rounded-xl border border-glass-border p-4 shadow-lg">
+                    <div className="text-[10px] text-accent-violet font-bold tracking-widest uppercase mb-1 flex items-center">
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent-violet mr-2"></span>
+                        Meshy AI Prompt
+                    </div>
+                    <div className="text-gray-300 text-xs italic leading-relaxed">
+                        "{modelSpec.prompt_used}"
+                    </div>
+                </div>
+            )}
+
+            <div ref={containerRef} className="w-full h-full" />
+        </div>
+    );
 }

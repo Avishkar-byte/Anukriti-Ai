@@ -5,77 +5,25 @@ Takes architecture graph → asks LLM to design a 3D layout → returns structur
 
 import json
 import os
+import time
+import requests
+import hashlib
 from typing import Any, Dict, List
 
-MODEL_3D_PROMPT = """You are a 3D CAD engineer designing schematic cutaway models of medical devices.
-Given a device name and its architecture components, generate a 3D model specification.
+MESHY_API_KEY = os.getenv("MESHY_API_KEY", "")
+MESHY_BASE_URL = "https://api.meshy.ai/openapi/v2/text-to-3d"
 
-Each component becomes a 3D primitive with position, size, color, and optional label.
+MODEL_3D_PROMPT = """You are an expert prompt engineer specializing in text-to-3D generation via Meshy AI.
 
-AVAILABLE SHAPES:
-- "box" — params: width, height, depth
-- "cylinder" — params: radiusTop, radiusBottom, height, segments (default 16)
-- "sphere" — params: radius, segments (default 16)
-- "cone" — params: radius, height, segments (default 16)
-- "torus" — params: radius, tube (tube radius), segments (default 16)
-- "plane" — params: width, height (flat rectangle, good for screens/displays)
-- "capsule" — params: radius, length
+Convert this medical device architecture into a highly detailed, rich visual prompt for a text-to-3D modeler.
 
-RULES:
-1. Position components logically inside a device housing
-2. Use Y-axis as vertical (Y=0 is center). Positive Y is up.
-3. Keep the model centered at origin (0,0,0)
-4. Total device size should fit within a 10x10x10 unit bounding box
-5. Add a semi-transparent "housing" as the outermost shell
-6. Color components by function:
-   - Power/Battery: #4ade80 (green)
-   - Processing/MCU/Controller: #60a5fa (blue)
-   - Sensors: #f59e0b (amber)
-   - Display/UI: #06b6d4 (cyan)
-   - Motors/Actuators/Pumps: #a78bfa (purple)
-   - Communication/Wireless: #ec4899 (pink)
-   - Safety/Protection: #ef4444 (red)
-   - Fluid/Tubing: #2dd4bf (teal)
-   - Housing/Structure: #ffffff with opacity 0.12
-   - Connectors/Ports: #9ca3af (gray)
-7. Add connection lines between related components
-8. Make it look like a real engineering cutaway diagram
-9. Include 8-20 parts for a detailed model
+Your output must be a SINGLE SENTENCE PROMPT, no more than 300 characters.
+Include descriptive terms for high quality (e.g., "highly detailed, 4k resolution, sleek industrial design, photorealistic, cinematic lighting").
 
-OUTPUT FORMAT (respond with ONLY valid JSON, no explanation):
-{
-  "device_name": "Insulin Pump",
-  "bounding_box": [8, 12, 4],
-  "parts": [
-    {
-      "id": "housing",
-      "label": "Device Housing",
-      "shape": "box",
-      "params": {"width": 8, "height": 12, "depth": 4},
-      "position": [0, 0, 0],
-      "rotation": [0, 0, 0],
-      "color": "#ffffff",
-      "opacity": 0.12,
-      "metalness": 0.3
-    },
-    {
-      "id": "battery",
-      "label": "Li-ion Battery",
-      "shape": "box",
-      "params": {"width": 3, "height": 1.5, "depth": 2.5},
-      "position": [0, -4, 0],
-      "rotation": [0, 0, 0],
-      "color": "#4ade80",
-      "opacity": 1.0,
-      "metalness": 0.5
-    }
-  ],
-  "connections": [
-    {"from": "battery", "to": "mcu", "color": "#4ade80", "label": "Power"},
-    {"from": "mcu", "to": "motor", "color": "#60a5fa", "label": "Control"}
-  ]
-}"""
+Example input: A device that has a battery, display, and tubing
+Example output: A photorealistic, highly detailed 3D model of a medical infusion pump, featuring a sleek modern white plastic housing, a bright glowing digital display, integrated lithium battery pack, and translucent medical-grade IV tubing connected to the side, cinematic lighting, 8k resolution.
 
+Respond ONLY with the precise 3D model generation prompt, no other text."""
 
 class DeviceModelGenerator:
     def __init__(self):
@@ -86,27 +34,154 @@ class DeviceModelGenerator:
         if api_key and api_key != "your_groq_api_key_here":
             try:
                 from groq import Groq
-
                 self.client = Groq(api_key=api_key)
                 self.model = model_name
                 self.llm_enabled = True
-                print("[3DModelGen] ✅ LLM-powered 3D model generator ready")
+                print("[3DModelGen] LLM wrapper for Meshy AI text prompt ready")
             except Exception as e:
-                print("[3DModelGen] ⚠️ LLM init failed: %s" % e)
+                print("[3DModelGen] LLM init failed: %s" % e)
+
+        if not MESHY_API_KEY:
+            print("[3DModelGen] MESHY_API_KEY is not set.")
         else:
-            print("[3DModelGen] ⚠️ No API key — using fallback 3D model")
+            print("[3DModelGen] Meshy API Key loaded")
+            
+        self.cache_file = "mesh_cache.json"
+        self.cache = self._load_cache()
+
+    def _load_cache(self) -> Dict:
+        if os.path.exists(self.cache_file):
+            try:
+                with open(self.cache_file, "r") as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"[3DModelGen] Failed to load cache: {e}")
+        return {}
+
+    def _save_cache(self):
+        try:
+            with open(self.cache_file, "w") as f:
+                json.dump(self.cache, f, indent=2)
+        except Exception as e:
+            print(f"[3DModelGen] Failed to save cache: {e}")
+
+    def _get_cache_key(self, device_name: str, components: List[Dict], edges: List[Dict]) -> str:
+        data = {"device_name": device_name, "components": components, "edges": edges}
+        return hashlib.md5(json.dumps(data, sort_keys=True).encode("utf-8")).hexdigest()
 
     def generate(
         self, device_name: str, components: List[Dict], edges: List[Dict]
     ) -> Dict[str, Any]:
-        """Generate 3D model spec from architecture graph."""
-        if self.llm_enabled:
-            return self._generate_with_llm(device_name, components, edges)
-        return self._fallback_model(device_name, components)
+        """Generate 3D model using Meshy AI and return URL."""
+        if not self.llm_enabled or not MESHY_API_KEY:
+            return {"device_name": device_name, "mesh_url": None, "error": "LLM or Meshy API key missing"}
 
-    def _generate_with_llm(
+        # Check Cache
+        cache_key = self._get_cache_key(device_name, components, edges)
+        if cache_key in self.cache:
+            print(f"[3DModelGen] ⚡ Cache hit! Returning saved mesh for {device_name}")
+            return self.cache[cache_key]
+
+        prompt = self._generate_prompt_with_llm(device_name, components, edges)
+        print(f"[3DModelGen] Submitting to Meshy AI with prompt: '{prompt}'")
+        
+        headers = {
+            "Authorization": f"Bearer {MESHY_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        # Step 1: Create Task
+        payload = {
+            "mode": "preview", # Use preview for faster testing, change to 'high' for production
+            "prompt": prompt,
+            "art_style": "realistic",
+            "should_remesh": True
+        }
+        
+        try:
+            response = requests.post(MESHY_BASE_URL, headers=headers, json=payload, timeout=30)
+            if response.status_code not in [200, 202]:
+                print(f"[3DModelGen] Meshy API Error: {response.text}")
+                return {"device_name": device_name, "mesh_url": None, "error": f"Meshy Error: {response.text}"}
+                
+            task_id = response.json().get("result")
+            print(f"[3DModelGen] Task created: {task_id}. Polling for completion...")
+            
+            # Step 2: Poll Task Status
+            max_attempts = 60 # 2 minutes max
+            for attempt in range(max_attempts):
+                time.sleep(2)
+                
+                try:
+                    poll_res = requests.get(f"{MESHY_BASE_URL}/{task_id}", headers=headers, timeout=20)
+                    if poll_res.status_code != 200:
+                        continue
+                        
+                    task_data = poll_res.json()
+                except Exception as e:
+                    print(f"[3DModelGen] ⚠️ Poll request failed: {e}. Retrying...")
+                    continue
+                    
+                status = task_data.get("status")
+                
+                if status == "SUCCEEDED":
+                    model_urls = task_data.get("model_urls", {})
+                    # Prefer GLB, fallback to OBJ if available
+                    mesh_url = model_urls.get("glb") or model_urls.get("obj")
+                    
+                    if not mesh_url:
+                        return {"device_name": device_name, "mesh_url": None, "error": "No model URL returned"}
+                        
+                    print(f"[3DModelGen] Meshy generation complete! URL: {mesh_url}")
+                    
+                    # --- FIX CORS ERROR: Download mesh locally & Host via FastAPI ---
+                    ext = "glb" if "glb" in model_urls else "obj"
+                    local_filename = f"meshy_{task_id}.{ext}"
+                    local_path = os.path.join("static", local_filename)
+                    
+                    try:
+                        print(f"[3DModelGen] Downloading mesh to {local_path} to avoid CORS...")
+                        dl_res = requests.get(mesh_url, timeout=30)
+                        if dl_res.status_code == 200:
+                            os.makedirs("static", exist_ok=True)
+                            with open(local_path, "wb") as f:
+                                f.write(dl_res.content)
+                            mesh_url = f"http://localhost:8000/static/{local_filename}"
+                            print(f"[3DModelGen] Mesh hosted locally at: {mesh_url}")
+                        else:
+                            print(f"[3DModelGen] Failed to download mesh: HTTP {dl_res.status_code}")
+                    except Exception as e:
+                        print(f"[3DModelGen] Failed to download mesh: {e}")
+                    # ----------------------------------------------------------------
+                    
+                    result = {
+                        "device_name": device_name,
+                        "mesh_url": mesh_url,
+                        "prompt_used": prompt,
+                        "format": ext
+                    }
+                    # Save to cache
+                    self.cache[cache_key] = result
+                    self._save_cache()
+                    return result
+                elif status in ["FAILED", "EXPIRED"]:
+                    print(f"[3DModelGen] Meshy task failed: {task_data.get('task_error')}")
+                    return {"device_name": device_name, "mesh_url": None, "error": f"Task Failed: {task_data.get('task_error')}"}
+                else:
+                    # PENDING or IN_PROGRESS
+                    if attempt % 5 == 0:
+                        print(f"[3DModelGen] Polling ({attempt}/{max_attempts})... Status: {status} ({task_data.get('progress', 0)}%)")
+                        
+            print("[3DModelGen] Timeout waiting for Meshy API")
+            return {"device_name": device_name, "mesh_url": None, "error": "Polling timeout"}
+            
+        except Exception as e:
+            print(f"[3DModelGen] Network Error: {e}")
+            return {"device_name": device_name, "mesh_url": None, "error": str(e)}
+
+    def _generate_prompt_with_llm(
         self, device_name: str, components: List[Dict], edges: List[Dict]
-    ) -> Dict[str, Any]:
+    ) -> str:
         try:
             comp_text = "\n".join(
                 [
@@ -137,136 +212,26 @@ class DeviceModelGenerator:
 Architecture Components:
 %s
 
-Connections:
-%s
-
-Generate a detailed 3D cutaway model specification for this device.""" % (
+Generate a concise 1-sentence prompt describing what this device should look like in a 3D model generator.""" % (
                 device_name,
                 comp_text,
-                edge_text,
             )
 
-            print("[3DModelGen] 🧠 Calling LLM for 3D model generation...")
+            print("[3DModelGen] Calling LLM for prompt generation...")
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": MODEL_3D_PROMPT},
                     {"role": "user", "content": prompt},
                 ],
-                temperature=0.3,
-                max_tokens=3000,
-                response_format={"type": "json_object"},
+                temperature=0.7,
+                max_tokens=200,
             )
 
-            raw = response.choices[0].message.content
-            data = json.loads(raw)
-
-            n_parts = len(data.get("parts", []))
-            n_connections = len(data.get("connections", []))
-            print(
-                "[3DModelGen] ✅ Generated: %d parts, %d connections"
-                % (n_parts, n_connections)
-            )
-
-            # Validate and sanitize
-            data = self._sanitize(data, device_name)
-            return data
+            raw = response.choices[0].message.content.strip()
+            print(f"[3DModelGen] LLM prompt generated: {raw}")
+            return raw
 
         except Exception as e:
-            print("[3DModelGen] ❌ LLM error: %s — using fallback" % e)
-            return self._fallback_model(device_name, components)
-
-    def _sanitize(self, data: Dict, device_name: str) -> Dict:
-        """Ensure valid 3D spec."""
-        data.setdefault("device_name", device_name)
-        data.setdefault("bounding_box", [8, 10, 4])
-        data.setdefault("parts", [])
-        data.setdefault("connections", [])
-
-        valid_shapes = {
-            "box",
-            "cylinder",
-            "sphere",
-            "cone",
-            "torus",
-            "plane",
-            "capsule",
-        }
-
-        for part in data["parts"]:
-            part.setdefault("id", "part_%d" % data["parts"].index(part))
-            part.setdefault("label", part["id"])
-            if part.get("shape") not in valid_shapes:
-                part["shape"] = "box"
-            part.setdefault("position", [0, 0, 0])
-            part.setdefault("rotation", [0, 0, 0])
-            part.setdefault("color", "#6b7280")
-            part.setdefault("opacity", 1.0)
-            part.setdefault("params", {"width": 1, "height": 1, "depth": 1})
-
-        return data
-
-    def _fallback_model(self, device_name: str, components: List[Dict]) -> Dict:
-        """Generate a basic model without LLM."""
-        parts = [
-            {
-                "id": "housing",
-                "label": "%s Housing" % device_name,
-                "shape": "box",
-                "params": {"width": 6, "height": 8, "depth": 3},
-                "position": [0, 0, 0],
-                "rotation": [0, 0, 0],
-                "color": "#ffffff",
-                "opacity": 0.1,
-                "metalness": 0.3,
-            }
-        ]
-
-        y_offset = -3
-        for i, comp in enumerate(components[:10]):
-            label = comp.get("label", comp.get("id", "Part %d" % i))
-            comp.get("type", "").lower()
-
-            if "battery" in label.lower() or "power" in label.lower():
-                color = "#4ade80"
-            elif "sensor" in label.lower():
-                color = "#f59e0b"
-            elif "display" in label.lower() or "screen" in label.lower():
-                color = "#06b6d4"
-            elif (
-                "motor" in label.lower()
-                or "pump" in label.lower()
-                or "actuator" in label.lower()
-            ):
-                color = "#a78bfa"
-            elif (
-                "wireless" in label.lower()
-                or "bluetooth" in label.lower()
-                or "comm" in label.lower()
-            ):
-                color = "#ec4899"
-            else:
-                color = "#60a5fa"
-
-            col = (i % 2) * 2 - 1  # -1 or 1
-            parts.append(
-                {
-                    "id": comp.get("id", "comp_%d" % i),
-                    "label": label,
-                    "shape": "box",
-                    "params": {"width": 2, "height": 1.2, "depth": 1.5},
-                    "position": [col * 1.2, y_offset, 0],
-                    "rotation": [0, 0, 0],
-                    "color": color,
-                    "opacity": 0.9,
-                }
-            )
-            if i % 2 == 1:
-                y_offset += 2
-
-        return {
-            "device_name": device_name,
-            "bounding_box": [6, 8, 3],
-            "parts": parts,
-            "connections": [],
-        }
+            print("[3DModelGen] LLM error: %s - using fallback" % e)
+            return f"A realistic 3D model of a {device_name}"
