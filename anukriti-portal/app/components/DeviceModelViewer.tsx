@@ -60,13 +60,20 @@ export default function DeviceModelViewer({ modelSpec }: Props) {
     const [loadingMesh, setLoadingMesh] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(modelSpec.error || null);
 
+    const lastUrlRef = useRef<string | null>(null);
+
     useEffect(() => {
         if (!containerRef.current) return;
 
         if (!modelSpec.mesh_url) {
-            setError(modelSpec.error || "No 3D model found");
+            if (error !== (modelSpec.error || "No 3D model found")) {
+                setError(modelSpec.error || "No 3D model found");
+            }
             return;
         }
+
+        if (lastUrlRef.current === modelSpec.mesh_url) return;
+        lastUrlRef.current = modelSpec.mesh_url;
 
         const container = containerRef.current;
         container.innerHTML = ''; // Clear previous renders
@@ -178,8 +185,8 @@ export default function DeviceModelViewer({ modelSpec }: Props) {
             );
         } else {
             console.error("Unsupported 3D format:", modelSpec.mesh_url);
-            setLoadingMesh(false);
-            setError("Unsupported mesh format.");
+            if(loadingMesh) setLoadingMesh(false);
+            if(error !== "Unsupported mesh format.") setError("Unsupported mesh format.");
         }
 
         // ─── Ambient particles ───

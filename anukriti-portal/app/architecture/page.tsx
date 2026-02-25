@@ -6,7 +6,17 @@ import { useProject, GraphNode, GraphEdge } from '../context/ProjectContext';
 import GlassCard from '../components/ui/GlassCard';
 import PrimaryButton from '../components/ui/PrimaryButton';
 import { Network, X, Layers, Maximize2 } from 'lucide-react';
-import DynamicGraphViewer from '../components/DynamicGraphViewer';
+import dynamic from 'next/dynamic';
+
+const DynamicGraphViewer = dynamic(() => import('../components/DynamicGraphViewer'), {
+    ssr: false,
+    loading: () => (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-deep-graphite/40 backdrop-blur-sm">
+            <div className="w-10 h-10 border-2 border-accent-cyan border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="text-accent-cyan font-mono text-xs uppercase tracking-widest">Rendering Topology Map...</p>
+        </div>
+    )
+});
 
 const NODE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
     'Component': { bg: 'bg-accent-cyan/10', border: 'border-accent-cyan/30', text: 'text-accent-cyan' },

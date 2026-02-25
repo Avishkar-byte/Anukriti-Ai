@@ -5,6 +5,17 @@ import Layout from '../components/Layout';
 import { useProject } from '../context/ProjectContext';
 import GlassCard from '../components/ui/GlassCard';
 import PrimaryButton from '../components/ui/PrimaryButton';
+import dynamic from 'next/dynamic';
+
+const DeviceModelViewer = dynamic(() => import('../components/DeviceModelViewer'), {
+    ssr: false,
+    loading: () => (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-deep-graphite/40 backdrop-blur-sm">
+            <div className="w-10 h-10 border-2 border-accent-cyan border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="text-accent-cyan font-mono text-xs uppercase tracking-widest">Loading 3D Engine...</p>
+        </div>
+    )
+});
 import { Zap, Brain, Activity, Terminal, Database, ShieldAlert, Thermometer, AlertCircle, TrendingUp, Sliders } from 'lucide-react';
 
 function ChannelChart({ name, values, unit, color }: { name: string; values: number[]; unit: string; color: string }) {
