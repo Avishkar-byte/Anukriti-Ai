@@ -2,9 +2,9 @@
 import { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 // @ts-ignore
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 // @ts-ignore
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 interface DeviceModelSpec {
     device_name: string;
@@ -185,8 +185,8 @@ export default function DeviceModelViewer({ modelSpec }: Props) {
             );
         } else {
             console.error("Unsupported 3D format:", modelSpec.mesh_url);
-            if(loadingMesh) setLoadingMesh(false);
-            if(error !== "Unsupported mesh format.") setError("Unsupported mesh format.");
+            if (loadingMesh) setLoadingMesh(false);
+            if (error !== "Unsupported mesh format.") setError("Unsupported mesh format.");
         }
 
         // ─── Ambient particles ───
