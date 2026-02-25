@@ -146,7 +146,8 @@ class DeviceModelGenerator:
                             os.makedirs("static", exist_ok=True)
                             with open(local_path, "wb") as f:
                                 f.write(dl_res.content)
-                            mesh_url = f"http://localhost:8000/static/{local_filename}"
+                            base_url = os.getenv("API_URL", "http://localhost:8000").rstrip("/")
+                            mesh_url = f"{base_url}/static/{local_filename}"
                             print(f"[3DModelGen] Mesh hosted locally at: {mesh_url}")
                         else:
                             print(f"[3DModelGen] Failed to download mesh: HTTP {dl_res.status_code}")
