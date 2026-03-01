@@ -113,15 +113,20 @@ async def create_project(req: ProjectCreate):
 
 def sanitize_floats(obj: Any) -> Any:
     """Recursively clean out NaN and Infinity floats to prevent JSONResponse 500 errors."""
-    if isinstance(obj, float):
-        if math.isnan(obj) or math.isinf(obj):
-            return str(obj)
-        return obj
-    elif isinstance(obj, dict):
+    if isinstance(obj, dict):
         return {k: sanitize_floats(v) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [sanitize_floats(v) for v in obj]
-    return obj
+    else:
+        try:
+            # Catch standard floats and numpy floats
+            if type(obj) in (float,) or type(obj).__name__ in ('float32', 'float64'):
+                if math.isnan(obj) or math.isinf(obj):
+                    return str(obj)
+                return float(obj)
+        except Exception:
+            pass
+        return obj
 
 def _safe_project_summary(p: dict) -> dict:
     """Strip heavy channel data for responses."""
