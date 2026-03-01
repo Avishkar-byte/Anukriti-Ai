@@ -133,7 +133,7 @@ app.include_router(viz_router)
 
 @app.get("/")
 async def root():
-    return {"message": "Anukriti AI Core System Operational", "status": "active", "version": "v1.0.1_nan_safe"}
+    return {"message": "Anukriti AI Core System Operational", "status": "active"}
 
 
 # ──────────────────────────────────────────
@@ -204,33 +204,15 @@ def _safe_project_summary(p: dict) -> dict:
 
 
 @app.get("/projects")
-async def list_projects(clear: bool = False):
+async def list_projects():
     """List all projects (without heavy sim data)."""
-    if clear:
-        count = len(projects)
-        projects.clear()
-        print(f"[NaN Fix] 🧹 Force cleared project store ({count} projects)")
-        return JSONResponse(content={"cleared": count, "message": "Store cleared successfully"})
-        
     try:
         result = [_safe_project_summary(p) for p in projects.values()]
         safe_json = safe_json_dumps(result)
         return Response(content=safe_json, media_type="application/json")
     except Exception as e:
         traceback.print_exc()
-        # Include more info in the 500 error
-        return JSONResponse(
-            status_code=500,
-            content={"detail": "JSON Serialization Failed", "error": str(e), "note": "Check EB logs for [NaN Fix] logs"}
-        )
-
-
-@app.get("/projects/clear")
-async def clear_projects_store():
-    """Admin: clear all in-memory projects to flush corrupted NaN state."""
-    count = len(projects)
-    projects.clear()
-    return JSONResponse(content={"cleared": count, "message": "ok", "status": "success"})
+        raise HTTPException(500, str(e))
 
 
 @app.get("/projects/{project_id}")
@@ -245,34 +227,6 @@ async def get_project(project_id: str):
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
-
-
-@app.get("/debug-projects")
-async def debug_projects():
-    """Debug endpoint: returns plain text traceback showing exactly what fails during project serialization."""
-    import io
-    output_lines = ["=== DEBUG PROJECTS ==="]
-    output_lines.append(f"Total projects in store: {len(projects)}")
-    for pid, p in projects.items():
-        output_lines.append(f"\n--- Project {pid} ---")
-        for key, val in p.items():
-            try:
-                cleaned = _clean_for_json(val)
-                json.dumps(cleaned)
-                output_lines.append(f"  {key}: OK")
-            except Exception as e:
-                output_lines.append(f"  {key}: FAILED - {e}")
-                output_lines.append(f"    type: {type(val)}")
-                output_lines.append(f"    value[:200]: {str(val)[:200]}")
-    return Response(content="\n".join(output_lines), media_type="text/plain")
-
-
-@app.delete("/admin/clear-projects")
-async def clear_projects():
-    """Admin: clear all in-memory projects (flushes corrupted NaN state)."""
-    count = len(projects)
-    projects.clear()
-    return {"cleared": count, "status": "ok"}
 
 
 # ──────────────────────────────────────────
