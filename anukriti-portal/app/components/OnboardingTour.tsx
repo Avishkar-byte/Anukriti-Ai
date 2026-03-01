@@ -75,7 +75,7 @@ export default function OnboardingTour() {
                     <p className="text-sm text-gray-300">Finally, autonomously generate and view an interactive 3D Model of your physical engineering system via Meshy AI.</p>
                 </div>
             ),
-            placement: 'right',
+            placement: 'top',
         },
     ];
 
