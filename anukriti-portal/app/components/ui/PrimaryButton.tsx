@@ -4,7 +4,7 @@ import { cn } from './GlassCard';
 
 export interface PrimaryButtonProps extends HTMLMotionProps<"button"> {
     children: React.ReactNode;
-    variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+    variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'solid';
     icon?: React.ReactNode;
 }
 
@@ -20,6 +20,8 @@ export default function PrimaryButton({ children, className, variant = 'primary'
         variantStyle = "bg-status-error/10 text-status-error border-status-error/30 hover:bg-status-error/20 hover:border-status-error/50 focus:ring-status-error/40";
     } else if (variant === 'ghost') {
         variantStyle = "bg-transparent text-neutral-text border-transparent hover:bg-white/5 hover:text-white";
+    } else if (variant === 'solid') {
+        variantStyle = "bg-accent-cyan text-deep-graphite font-bold border-accent-cyan hover:bg-accent-cyan/90 shadow-[0_0_15px_rgba(97,218,251,0.4)] hover:shadow-[0_0_25px_rgba(97,218,251,0.6)] focus:ring-accent-cyan/50";
     }
 
     return (

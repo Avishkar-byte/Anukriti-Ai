@@ -41,9 +41,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
                     <div className="flex items-center space-x-4 pointer-events-auto relative z-40">
                         <PrimaryButton
-                            variant="primary"
+                            variant="solid"
                             onClick={() => setShowNewProject(true)}
-                            className="text-sm shadow-[0_0_15px_rgba(97,218,251,0.2)] hover:shadow-[0_0_20px_rgba(97,218,251,0.4)]"
+                            className="text-sm shadow-xl"
                         >
                             + New Digital Twin
                         </PrimaryButton>
