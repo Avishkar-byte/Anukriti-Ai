@@ -20,7 +20,7 @@ export default function OnboardingTour() {
             target: '.tour-step-1-new-twin',
             content: (
                 <div className="text-left space-y-2">
-                    <h3 className="text-lg font-bold text-accent-cyan">1. Initialize Artifact</h3>
+                    <h3 className="text-lg font-bold text-accent-cyan">1. Initialize Project</h3>
                     <p className="text-sm text-gray-300">Start here. Click this button to define the name and high-level description of the new digital twin you want to generate.</p>
                 </div>
             ),
@@ -98,6 +98,7 @@ export default function OnboardingTour() {
             continuous={true}
             showProgress={true}
             showSkipButton={true}
+            disableScrolling={true}
             callback={handleJoyrideCallback}
             styles={{
                 options: {

@@ -20,24 +20,29 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 {/* Top Bar */}
                 <header className="h-20 flex items-center justify-end md:justify-between px-4 md:px-8 shrink-0 z-30 pointer-events-none mt-2">
                     <div className="hidden md:flex items-center space-x-4 pointer-events-auto">
-                        {/* Project Selector */}
-                        {projects.length > 0 && (
-                            <div className="tour-step-2-projects bg-glass backdrop-blur-md border border-glass-border rounded-xl shadow-lg hover:border-white/20 transition-colors">
-                                <select
-                                    value={activeProject?.project_id || ''}
-                                    onChange={(e) => {
-                                        const p = projects.find(p => p.project_id === e.target.value);
-                                        if (p) setActiveProject(p);
-                                    }}
-                                    className="bg-transparent px-4 py-2 text-sm text-white outline-none cursor-pointer appearance-none min-w-[200px]"
-                                >
-                                    <option value="" className="bg-deep-graphite">Select Project...</option>
-                                    {projects.map((p: any) => (
-                                        <option key={p.project_id} value={p.project_id} className="bg-deep-graphite">{p.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
+                        {/* Project Selector (always show so tour can target it) */}
+                        <div className="tour-step-2-projects bg-glass backdrop-blur-md border border-glass-border rounded-xl shadow-lg hover:border-white/20 transition-colors">
+                            <select
+                                value={activeProject?.project_id || ''}
+                                onChange={(e) => {
+                                    const p = projects.find(p => p.project_id === e.target.value);
+                                    if (p) setActiveProject(p);
+                                }}
+                                disabled={projects.length === 0}
+                                className="bg-transparent px-4 py-2 text-sm text-white outline-none cursor-pointer appearance-none min-w-[200px] disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {projects.length === 0 ? (
+                                    <option value="" className="bg-deep-graphite">No projects available</option>
+                                ) : (
+                                    <>
+                                        <option value="" className="bg-deep-graphite">Select Project...</option>
+                                        {projects.map((p: any) => (
+                                            <option key={p.project_id} value={p.project_id} className="bg-deep-graphite">{p.name}</option>
+                                        ))}
+                                    </>
+                                )}
+                            </select>
+                        </div>
                     </div>
 
                     <div className="flex items-center space-x-4 pointer-events-auto relative z-40">
