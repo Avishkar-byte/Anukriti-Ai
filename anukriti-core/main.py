@@ -117,6 +117,16 @@ def sanitize_floats(obj: Any) -> Any:
         return {k: sanitize_floats(v) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [sanitize_floats(v) for v in obj]
+    elif hasattr(obj, "dict") and callable(getattr(obj, "dict")):
+        try:
+            return {k: sanitize_floats(v) for k, v in obj.dict().items()}
+        except Exception:
+            pass
+    elif hasattr(obj, "model_dump") and callable(getattr(obj, "model_dump")):
+        try:
+            return {k: sanitize_floats(v) for k, v in obj.model_dump().items()}
+        except Exception:
+            pass
     else:
         try:
             # Catch standard floats and numpy floats
