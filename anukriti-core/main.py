@@ -33,6 +33,7 @@ def _clean_for_json(obj):
     """Recursively replace NaN/Inf floats with None for JSON-safe serialization."""
     if isinstance(obj, float):
         if math.isnan(obj) or math.isinf(obj):
+            print(f"[NaN Fix] 🚨 Found illegal float: {obj}")
             return None
         return obj
     if isinstance(obj, dict):
@@ -52,7 +53,9 @@ def _clean_for_json(obj):
 def safe_json_dumps(obj) -> str:
     """Clean NaN/Inf and serialize to valid JSON string."""
     cleaned = _clean_for_json(obj)
-    return json.dumps(cleaned)
+    # We set allow_nan=False here so we catch any missed cases and raise an error
+    # instead of producing invalid JSON literals like 'NaN'.
+    return json.dumps(cleaned, allow_nan=False)
 
 
 from contextlib import asynccontextmanager
@@ -130,7 +133,7 @@ app.include_router(viz_router)
 
 @app.get("/")
 async def root():
-    return {"message": "Anukriti AI Core System Operational", "status": "active"}
+    return {"message": "Anukriti AI Core System Operational", "status": "active", "version": "v1.0.1_nan_safe"}
 
 
 # ──────────────────────────────────────────
@@ -201,15 +204,25 @@ def _safe_project_summary(p: dict) -> dict:
 
 
 @app.get("/projects")
-async def list_projects():
+async def list_projects(clear: bool = False):
     """List all projects (without heavy sim data)."""
+    if clear:
+        count = len(projects)
+        projects.clear()
+        print(f"[NaN Fix] 🧹 Force cleared project store ({count} projects)")
+        return JSONResponse(content={"cleared": count, "message": "Store cleared successfully"})
+        
     try:
         result = [_safe_project_summary(p) for p in projects.values()]
         safe_json = safe_json_dumps(result)
         return Response(content=safe_json, media_type="application/json")
     except Exception as e:
         traceback.print_exc()
-        raise HTTPException(500, str(e))
+        # Include more info in the 500 error
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "JSON Serialization Failed", "error": str(e), "note": "Check EB logs for [NaN Fix] logs"}
+        )
 
 
 @app.get("/projects/clear")
