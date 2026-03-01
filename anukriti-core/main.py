@@ -11,6 +11,7 @@ from typing import Any, Dict, List
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+import json
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -216,7 +217,7 @@ async def clear_projects_store():
     """Admin: clear all in-memory projects to flush corrupted NaN state."""
     count = len(projects)
     projects.clear()
-    return {"cleared": count, "message": "ok"}
+    return JSONResponse(content={"cleared": count, "message": "ok", "status": "success"})
 
 
 @app.get("/projects/{project_id}")
@@ -225,7 +226,8 @@ async def get_project(project_id: str):
     if project_id not in projects:
         raise HTTPException(404, "Project not found")
     try:
-        safe_json = safe_json_dumps(sanitize_floats(projects[project_id]))
+        # Use safe_json_dumps and return as Response to bypass default NaN-unsafe JSONResponse
+        safe_json = safe_json_dumps(projects[project_id])
         return Response(content=safe_json, media_type="application/json")
     except Exception as e:
         traceback.print_exc()
