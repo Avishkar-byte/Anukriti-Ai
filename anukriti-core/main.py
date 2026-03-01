@@ -159,6 +159,22 @@ async def list_projects():
     """List all projects (without heavy sim data)."""
     try:
         result = [_safe_project_summary(p) for p in projects.values()]
+        
+        # DEBUG TRACER: Manually trigger the JSON crash locally before FastAPI eats it
+        try:
+            import json
+            json.dumps(result)
+        except ValueError as err:
+            import logging
+            logging.error(f"JSON DUMP FAILED globally: {err}")
+            for p in result:
+                for k, v in p.items():
+                    try:
+                        json.dumps(v)
+                    except ValueError as inner_err:
+                        logging.error(f"CRASH DUE TO KEY {k} in Project {p.get('project_id')} - Value: {v}")
+            raise err
+
         return JSONResponse(content=result)
     except Exception as e:
         traceback.print_exc()
