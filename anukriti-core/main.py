@@ -54,11 +54,27 @@ def safe_json_dumps(obj) -> str:
     return json.dumps(cleaned)
 
 
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def lifespan(the_app):
+    """Startup: sanitize any pre-existing projects with NaN/Inf to prevent serialization errors."""
+    for pid in list(projects.keys()):
+        try:
+            projects[pid] = _clean_for_json(projects[pid])
+        except Exception:
+            pass
+    yield
+
+
 app = FastAPI(
     title="Anukriti AI Core",
     description="Orchestration Layer for Medical Device Digital Twins",
     version="1.0.0",
+    lifespan=lifespan,
 )
+
 
 # CORS Configuration
 app.add_middleware(
@@ -420,6 +436,14 @@ async def get_stats():
         "simulations_run": sims_run,
         "active_twins": twins_active,
     }
+
+
+@app.get("/system/clear")
+async def clear_all_projects():
+    """Admin: clear all in-memory projects to flush corrupted NaN state."""
+    count = len(projects)
+    projects.clear()
+    return {"cleared": count, "message": "ok"}
 
 
 if __name__ == "__main__":
