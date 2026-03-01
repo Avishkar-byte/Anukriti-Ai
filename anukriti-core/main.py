@@ -28,6 +28,27 @@ from core.training.pipeline import TrainingPipeline
 from core.viz.bridge import router as viz_router
 from core.viz.model_generator import DeviceModelGenerator
 
+import json
+
+# ──────────────────────────────────────────
+# Custom JSON encoder: replace NaN/Inf with null globally
+# ──────────────────────────────────────────
+class SafeJSONEncoder(json.JSONEncoder):
+    def encode(self, o):
+        return super().encode(self._clean(o))
+
+    def _clean(self, obj):
+        if isinstance(obj, float):
+            if math.isnan(obj) or math.isinf(obj):
+                return None
+            return obj
+        if isinstance(obj, dict):
+            return {k: self._clean(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [self._clean(v) for v in obj]
+        return obj
+
+
 app = FastAPI(
     title="Anukriti AI Core",
     description="Orchestration Layer for Medical Device Digital Twins",
@@ -151,6 +172,9 @@ def _safe_project_summary(p: dict) -> dict:
             "warnings": sim.get("warnings", []),
             "channel_names": list(sim.get("channels", {}).keys()),
         }
+    # Drop heavy graph and twin data to keep response small
+    summary.pop("graph", None)
+    summary.pop("twin", None)
     return sanitize_floats(summary)
 
 
@@ -159,7 +183,9 @@ async def list_projects():
     """List all projects (without heavy sim data)."""
     try:
         result = [_safe_project_summary(p) for p in projects.values()]
-        return JSONResponse(content=result)
+        # Use our safe encoder to handle any residual NaN/Inf
+        safe_json = SafeJSONEncoder().encode(result)
+        return Response(content=safe_json, media_type="application/json")
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
@@ -171,7 +197,8 @@ async def get_project(project_id: str):
     if project_id not in projects:
         raise HTTPException(404, "Project not found")
     try:
-        return JSONResponse(content=sanitize_floats(projects[project_id]))
+        safe_json = SafeJSONEncoder().encode(sanitize_floats(projects[project_id]))
+        return Response(content=safe_json, media_type="application/json")
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
