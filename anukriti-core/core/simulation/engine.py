@@ -80,17 +80,19 @@ class NumericalEngine:
     def _add_channel(
         self, result: SimulationResult, name: str, values: np.ndarray, unit: str
     ):
-        """Add a computed channel to results."""
+        """Add a computed channel to results. Sanitizes NaN/Inf to prevent JSON errors."""
+        # Sanitize the array — replace NaN/Inf with 0.0 so JSON serialization never crashes
+        safe_values = np.nan_to_num(values, nan=0.0, posinf=0.0, neginf=0.0)
         result.channels[name] = {
-            "values": values.tolist(),
+            "values": safe_values.tolist(),
             "unit": unit,
-            "min": round(float(np.min(values)), 4),
-            "max": round(float(np.max(values)), 4),
-            "mean": round(float(np.mean(values)), 4),
-            "std": round(float(np.std(values)), 4),
+            "min": round(float(np.min(safe_values)), 4),
+            "max": round(float(np.max(safe_values)), 4),
+            "mean": round(float(np.mean(safe_values)), 4),
+            "std": round(float(np.std(safe_values)), 4),
         }
-        result.metrics[f"{name}_max"] = round(float(np.max(values)), 4)
-        result.metrics[f"{name}_min"] = round(float(np.min(values)), 4)
+        result.metrics[f"{name}_max"] = round(float(np.max(safe_values)), 4)
+        result.metrics[f"{name}_min"] = round(float(np.min(safe_values)), 4)
 
     # ─── Battery Discharge Model ────────────────────────
     def _sim_battery(
@@ -266,7 +268,8 @@ class NumericalEngine:
         # SNR
         signal_power = np.mean(clean**2)
         noise_power = np.mean(noise**2)
-        snr_db = 10 * np.log10(signal_power / noise_power) if noise_power > 0 else 999
+        snr_db = 10 * np.log10(signal_power / noise_power) if noise_power > 0 and signal_power > 0 else 0.0
+        snr_db = float(np.nan_to_num(snr_db, nan=0.0, posinf=0.0, neginf=0.0))
 
         self._add_channel(result, f"{name}_raw_signal", raw_signal, "V")
         self._add_channel(result, f"{name}_quantized", quantized, "V")

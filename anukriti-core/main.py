@@ -158,9 +158,8 @@ def _safe_project_summary(p: dict) -> dict:
 async def list_projects():
     """List all projects (without heavy sim data)."""
     try:
-        import json
         result = [_safe_project_summary(p) for p in projects.values()]
-        return Response(content=json.dumps(result), media_type="application/json")
+        return JSONResponse(content=result)
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
@@ -172,8 +171,7 @@ async def get_project(project_id: str):
     if project_id not in projects:
         raise HTTPException(404, "Project not found")
     try:
-        import json
-        return Response(content=json.dumps(sanitize_floats(projects[project_id])), media_type="application/json")
+        return JSONResponse(content=sanitize_floats(projects[project_id]))
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
