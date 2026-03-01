@@ -1,0 +1,15 @@
+.git
+.gitignore
+__pycache__
+*.pyc
+venv
+.venv
+env
+.env
+.idea
+.vscode
+node_modules
+static/
+models/
+shap_e_model_cache/
+mesh_cache.json

@@ -8,6 +8,7 @@ import os
 import time
 import requests
 import hashlib
+import threading
 from typing import Any, Dict, List
 
 MESHY_API_KEY = os.getenv("MESHY_API_KEY", "")
@@ -48,6 +49,7 @@ class DeviceModelGenerator:
             
         self.cache_file = "mesh_cache.json"
         self.cache = self._load_cache()
+        self.active_tasks = {}
 
     def _load_cache(self) -> Dict:
         if os.path.exists(self.cache_file):
@@ -72,16 +74,44 @@ class DeviceModelGenerator:
     def generate(
         self, device_name: str, components: List[Dict], edges: List[Dict]
     ) -> Dict[str, Any]:
-        """Generate 3D model using Meshy AI and return URL."""
+        """Generate 3D model using Meshy AI in a non-blocking way."""
         if not self.llm_enabled or not MESHY_API_KEY:
             return {"device_name": device_name, "mesh_url": None, "error": "LLM or Meshy API key missing"}
 
         # Check Cache
         cache_key = self._get_cache_key(device_name, components, edges)
         if cache_key in self.cache:
+            if self.cache[cache_key].get("status") == "failed":
+                return self.cache.pop(cache_key) # Allow retry
             print(f"[3DModelGen] ⚡ Cache hit! Returning saved mesh for {device_name}")
             return self.cache[cache_key]
 
+        # Check Active Tasks
+        if cache_key in self.active_tasks:
+            return {"status": "processing", "device_name": device_name}
+            
+        self.active_tasks[cache_key] = True
+
+        def worker():
+            try:
+                result = self._run_meshy_pipeline(device_name, components, edges, cache_key)
+                if result:
+                    self.cache[cache_key] = result
+                    self._save_cache()
+            except Exception as e:
+                self.cache[cache_key] = {"error": str(e), "status": "failed"}
+                self._save_cache()
+            finally:
+                self.active_tasks.pop(cache_key, None)
+
+        thread = threading.Thread(target=worker)
+        thread.start()
+
+        return {"status": "processing", "device_name": device_name}
+
+    def _run_meshy_pipeline(
+        self, device_name: str, components: List[Dict], edges: List[Dict], cache_key: str
+    ) -> Dict[str, Any]:
         prompt = self._generate_prompt_with_llm(device_name, components, edges)
         print(f"[3DModelGen] Submitting to Meshy AI with prompt: '{prompt}'")
         
@@ -102,15 +132,15 @@ class DeviceModelGenerator:
             response = requests.post(MESHY_BASE_URL, headers=headers, json=payload, timeout=30)
             if response.status_code not in [200, 202]:
                 print(f"[3DModelGen] Meshy API Error: {response.text}")
-                return {"device_name": device_name, "mesh_url": None, "error": f"Meshy Error: {response.text}"}
+                return {"device_name": device_name, "mesh_url": None, "error": f"Meshy Error: {response.text}", "status": "failed"}
                 
             task_id = response.json().get("result")
             print(f"[3DModelGen] Task created: {task_id}. Polling for completion...")
             
             # Step 2: Poll Task Status
-            max_attempts = 60 # 2 minutes max
+            max_attempts = 100 # 5 minutes max
             for attempt in range(max_attempts):
-                time.sleep(2)
+                time.sleep(3)
                 
                 try:
                     poll_res = requests.get(f"{MESHY_BASE_URL}/{task_id}", headers=headers, timeout=20)
@@ -130,7 +160,7 @@ class DeviceModelGenerator:
                     mesh_url = model_urls.get("glb") or model_urls.get("obj")
                     
                     if not mesh_url:
-                        return {"device_name": device_name, "mesh_url": None, "error": "No model URL returned"}
+                        return {"device_name": device_name, "mesh_url": None, "error": "No model URL returned", "status": "failed"}
                         
                     print(f"[3DModelGen] Meshy generation complete! URL: {mesh_url}")
                     
@@ -159,26 +189,24 @@ class DeviceModelGenerator:
                         "device_name": device_name,
                         "mesh_url": mesh_url,
                         "prompt_used": prompt,
-                        "format": ext
+                        "format": ext,
+                        "status": "completed"
                     }
-                    # Save to cache
-                    self.cache[cache_key] = result
-                    self._save_cache()
                     return result
                 elif status in ["FAILED", "EXPIRED"]:
                     print(f"[3DModelGen] Meshy task failed: {task_data.get('task_error')}")
-                    return {"device_name": device_name, "mesh_url": None, "error": f"Task Failed: {task_data.get('task_error')}"}
+                    return {"device_name": device_name, "mesh_url": None, "error": f"Task Failed: {task_data.get('task_error')}", "status": "failed"}
                 else:
                     # PENDING or IN_PROGRESS
                     if attempt % 5 == 0:
                         print(f"[3DModelGen] Polling ({attempt}/{max_attempts})... Status: {status} ({task_data.get('progress', 0)}%)")
                         
             print("[3DModelGen] Timeout waiting for Meshy API")
-            return {"device_name": device_name, "mesh_url": None, "error": "Polling timeout"}
+            return {"device_name": device_name, "mesh_url": None, "error": "Polling timeout", "status": "failed"}
             
         except Exception as e:
             print(f"[3DModelGen] Network Error: {e}")
-            return {"device_name": device_name, "mesh_url": None, "error": str(e)}
+            return {"device_name": device_name, "mesh_url": None, "error": str(e), "status": "failed"}
 
     def _generate_prompt_with_llm(
         self, device_name: str, components: List[Dict], edges: List[Dict]

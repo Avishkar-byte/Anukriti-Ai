@@ -12,6 +12,7 @@ interface DeviceModelSpec {
     prompt_used?: string;
     error?: string;
     format?: string;
+    status?: string;
     bounding_box?: number[];
 }
 
@@ -58,12 +59,14 @@ export default function DeviceModelViewer({ modelSpec }: Props) {
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const sceneRef = useRef<THREE.Scene | null>(null);
     const [loadingMesh, setLoadingMesh] = useState<boolean>(false);
-    const [error, setError] = useState<string | null>(modelSpec.error || null);
+    const [error, setError] = useState<string | null>(modelSpec?.status !== "processing" ? (modelSpec?.error || null) : null);
 
     const lastUrlRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (!containerRef.current) return;
+
+        if (modelSpec.status === "processing") return; // Let the top level render handle this
 
         if (!modelSpec.mesh_url) {
             if (error !== (modelSpec.error || "No 3D model found")) {
@@ -232,7 +235,17 @@ export default function DeviceModelViewer({ modelSpec }: Props) {
         };
     }, [modelSpec]);
 
-    if (error) {
+    if (modelSpec?.status === "processing") {
+        return (
+            <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-deep-graphite/40 backdrop-blur-sm rounded-xl">
+                <div className="w-10 h-10 border-2 border-accent-cyan border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="text-accent-cyan font-mono text-xs uppercase tracking-widest">Generating with Meshy AI...</p>
+                <p className="text-gray-400 text-[10px] mt-2 max-w-xs text-center">This typically takes 2-5 minutes. Please wait.</p>
+            </div>
+        );
+    }
+
+    if (error && modelSpec?.status !== "processing") {
         return (
             <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-status-error/5 border border-status-error/20 rounded-xl">
                 <div className="text-status-error font-bold mb-2 text-lg">3D Generation Failed</div>
@@ -246,8 +259,7 @@ export default function DeviceModelViewer({ modelSpec }: Props) {
             {loadingMesh && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-deep-graphite/40 backdrop-blur-sm">
                     <div className="w-10 h-10 border-2 border-accent-cyan border-t-transparent rounded-full animate-spin mb-4" />
-                    <p className="text-accent-cyan font-mono text-xs uppercase tracking-widest">Generating with Meshy AI...</p>
-                    <p className="text-gray-400 text-[10px] mt-2 max-w-xs text-center">This typically takes 30-60 seconds. Do not refresh.</p>
+                    <p className="text-accent-cyan font-mono text-xs uppercase tracking-widest">Loading Mesh...</p>
                 </div>
             )}
 

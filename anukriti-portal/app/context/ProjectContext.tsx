@@ -286,20 +286,39 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         if (!activeProject?.graph) return null;
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE}/workflow/generate-3d-model`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    project_id: activeProject.project_id,
-                    device_name: activeProject.name,
-                    requirements: activeProject.requirements?.requirements || []
-                })
-            });
-            const data = await res.json();
+            let isPolling = true;
+            let resultData = null;
+
+            while (isPolling) {
+                const res = await fetch(`${API_BASE}/workflow/generate-3d-model`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project_id: activeProject.project_id,
+                        device_name: activeProject.name,
+                        requirements: activeProject.requirements?.requirements || []
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data?.status === "processing") {
+                    // Wait for 5 seconds before checking again
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    continue; // Loop again
+                }
+
+                resultData = data;
+                isPolling = false; // Stop polling
+            }
+
             await refreshActiveProject(activeProject.project_id);
-            return data;
-        } catch { return null; }
-        finally { setLoading(false); }
+            return resultData;
+        } catch {
+            return null;
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
