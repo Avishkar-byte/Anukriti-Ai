@@ -19,7 +19,7 @@ export default function StepRail() {
     const { activeProject } = useProject();
 
     return (
-        <div className="tour-step-3-nav w-64 h-screen border-r border-glass-border bg-glass backdrop-blur-xl flex flex-col p-4 flex-shrink-0 z-40 fixed left-0 top-0">
+        <div className="w-64 h-screen border-r border-glass-border bg-glass backdrop-blur-xl flex flex-col p-4 flex-shrink-0 z-40 fixed left-0 top-0">
             {/* Header / Brand */}
             <div className="mb-10 px-2 flex items-center space-x-3">
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-violet to-accent-cyan flex flex-shrink-0 items-center justify-center shadow-lg shadow-accent-cyan/20">
@@ -55,7 +55,7 @@ export default function StepRail() {
                             onClick={() => router.push(step.path)}
                             whileHover={{ scale: 1.02, x: 4 }}
                             whileTap={{ scale: 0.98 }}
-                            className={`w-full text-left flex items-center p-3 rounded-2xl transition-colors relative group ${isActive ? 'bg-white/5 border border-white/10 shadow-lg' : 'hover:bg-white/5 border border-transparent'}`}
+                            className={`tour-nav-step-${step.id} w-full text-left flex items-center p-3 rounded-2xl transition-colors relative group ${isActive ? 'bg-white/5 border border-white/10 shadow-lg' : 'hover:bg-white/5 border border-transparent'}`}
                         >
                             {/* Node dot connection */}
                             <div className={`w-3 h-3 rounded-full border-2 mr-3 flex-shrink-0 transition-colors ${isActive ? 'border-accent-cyan bg-accent-cyan/20 shadow-[0_0_10px_rgba(97,218,251,0.5)]' : 'border-muted-text bg-deep-graphite group-hover:border-white'}`} />

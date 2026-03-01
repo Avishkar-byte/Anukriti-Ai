@@ -38,11 +38,41 @@ export default function OnboardingTour() {
             placement: 'top',
         },
         {
-            target: '.tour-step-3-nav',
+            target: '.tour-nav-step-requirements',
             content: (
                 <div className="text-left space-y-2">
-                    <h3 className="text-lg font-bold text-accent-cyan">3. Build Pipeline</h3>
-                    <p className="text-sm text-gray-300">Once a project is active, move sequentially down this rail. Start by generating requirements, then map the architecture, simulate telemetry, and finalize with a 3D Mesh.</p>
+                    <h3 className="text-lg font-bold text-accent-cyan">3. Requirements Analysis</h3>
+                    <p className="text-sm text-gray-300">Our LLM engine will break down your project prompt into specific physical constraints, thresholds, and operational limits.</p>
+                </div>
+            ),
+            placement: 'right',
+        },
+        {
+            target: '.tour-nav-step-architecture',
+            content: (
+                <div className="text-left space-y-2">
+                    <h3 className="text-lg font-bold text-accent-cyan">4. Map Architecture</h3>
+                    <p className="text-sm text-gray-300">Visualize the physical and logical components of your device as an interactive, connected topology graph.</p>
+                </div>
+            ),
+            placement: 'right',
+        },
+        {
+            target: '.tour-nav-step-simulation',
+            content: (
+                <div className="text-left space-y-2">
+                    <h3 className="text-lg font-bold text-accent-cyan">5. Physics Simulation</h3>
+                    <p className="text-sm text-gray-300">Run math-based telemetry simulations based on your constraints, and train a resilient Machine Learning Surrogate Model.</p>
+                </div>
+            ),
+            placement: 'right',
+        },
+        {
+            target: '.tour-nav-step-digital-twins',
+            content: (
+                <div className="text-left space-y-2">
+                    <h3 className="text-lg font-bold text-accent-cyan">6. 3D Generative Mesh</h3>
+                    <p className="text-sm text-gray-300">Finally, autonomously generate and view an interactive 3D Model of your physical engineering system via Meshy AI.</p>
                 </div>
             ),
             placement: 'right',
@@ -102,6 +132,7 @@ export default function OnboardingTour() {
                     fontSize: '14px',
                 }
             }}
+            locale={{ last: 'Finish', skip: 'Skip', next: 'Next' }}
         />
     );
 }
