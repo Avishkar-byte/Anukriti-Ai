@@ -3,6 +3,7 @@ if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8')
 
 import time
+import math
 import traceback
 import uuid
 from typing import Any, Dict, List
@@ -110,6 +111,18 @@ async def create_project(req: ProjectCreate):
     return projects[project_id]
 
 
+def sanitize_floats(obj: Any) -> Any:
+    """Recursively clean out NaN and Infinity floats to prevent JSONResponse 500 errors."""
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return str(obj)
+        return obj
+    elif isinstance(obj, dict):
+        return {k: sanitize_floats(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [sanitize_floats(v) for v in obj]
+    return obj
+
 def _safe_project_summary(p: dict) -> dict:
     """Strip heavy channel data for responses."""
     summary = dict(p)
@@ -123,7 +136,7 @@ def _safe_project_summary(p: dict) -> dict:
             "warnings": sim.get("warnings", []),
             "channel_names": list(sim.get("channels", {}).keys()),
         }
-    return summary
+    return sanitize_floats(summary)
 
 
 @app.get("/projects")
@@ -143,7 +156,7 @@ async def get_project(project_id: str):
     if project_id not in projects:
         raise HTTPException(404, "Project not found")
     try:
-        return JSONResponse(content=_safe_project_summary(projects[project_id]))
+        return JSONResponse(content=sanitize_floats(projects[project_id]))
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
