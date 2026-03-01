@@ -211,6 +211,14 @@ async def list_projects():
         raise HTTPException(500, str(e))
 
 
+@app.get("/projects/clear")
+async def clear_projects_store():
+    """Admin: clear all in-memory projects to flush corrupted NaN state."""
+    count = len(projects)
+    projects.clear()
+    return {"cleared": count, "message": "ok"}
+
+
 @app.get("/projects/{project_id}")
 async def get_project(project_id: str):
     """Get a specific project's full state."""
