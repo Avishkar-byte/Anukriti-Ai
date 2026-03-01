@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -158,24 +158,9 @@ def _safe_project_summary(p: dict) -> dict:
 async def list_projects():
     """List all projects (without heavy sim data)."""
     try:
+        import json
         result = [_safe_project_summary(p) for p in projects.values()]
-        
-        # DEBUG TRACER: Manually trigger the JSON crash locally before FastAPI eats it
-        try:
-            import json
-            json.dumps(result)
-        except ValueError as err:
-            import logging
-            logging.error(f"JSON DUMP FAILED globally: {err}")
-            for p in result:
-                for k, v in p.items():
-                    try:
-                        json.dumps(v)
-                    except ValueError as inner_err:
-                        logging.error(f"CRASH DUE TO KEY {k} in Project {p.get('project_id')} - Value: {v}")
-            raise err
-
-        return JSONResponse(content=result)
+        return Response(content=json.dumps(result), media_type="application/json")
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
@@ -187,7 +172,8 @@ async def get_project(project_id: str):
     if project_id not in projects:
         raise HTTPException(404, "Project not found")
     try:
-        return JSONResponse(content=sanitize_floats(projects[project_id]))
+        import json
+        return Response(content=json.dumps(sanitize_floats(projects[project_id])), media_type="application/json")
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(500, str(e))
