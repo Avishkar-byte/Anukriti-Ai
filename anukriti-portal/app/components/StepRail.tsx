@@ -2,6 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useProject } from '../context/ProjectContext';
 import { Layers, GitCommit, Activity, Cpu, Hexagon } from 'lucide-react';
 
@@ -22,12 +23,9 @@ export default function StepRail() {
         <div className="w-64 h-screen border-r border-glass-border bg-glass backdrop-blur-xl flex flex-col p-4 flex-shrink-0 z-40 fixed left-0 top-0">
             {/* Header / Brand */}
             <div className="mb-10 px-2 flex items-center space-x-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-violet to-accent-cyan flex flex-shrink-0 items-center justify-center shadow-lg shadow-accent-cyan/20">
-                    <span className="text-white font-bold text-lg">A</span>
-                </div>
+                <Image src="/logo.png" alt="Anukriti Logo" width={36} height={36} className="rounded-lg object-contain bg-white p-0.5" />
                 <div>
-                    <h1 className="text-white font-bold tracking-wide">Anukriti</h1>
-                    <p className="text-[10px] text-accent-cyan uppercase tracking-widest font-mono">Digital Twin OS</p>
+                    <h1 className="text-white font-bold tracking-wide text-xl">Anukriti</h1>
                 </div>
             </div>
 
