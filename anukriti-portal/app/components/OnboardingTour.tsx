@@ -3,10 +3,12 @@ import { useEffect, useState } from 'react';
 import Joyride, { CallBackProps, STATUS, Step } from 'react-joyride';
 
 export default function OnboardingTour() {
+    const [isMounted, setIsMounted] = useState(false);
     const [run, setRun] = useState(false);
 
     // Auto-start the tour if not seen this session
     useEffect(() => {
+        setIsMounted(true);
         const hasSeenTour = sessionStorage.getItem('anukriti_tour_seen');
         if (!hasSeenTour) {
             setRun(true);
@@ -56,6 +58,8 @@ export default function OnboardingTour() {
             sessionStorage.setItem('anukriti_tour_seen', 'true');
         }
     };
+
+    if (!isMounted) return null;
 
     return (
         <Joyride
