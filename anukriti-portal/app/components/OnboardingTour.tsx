@@ -1,0 +1,103 @@
+"use client";
+import { useEffect, useState } from 'react';
+import Joyride, { CallBackProps, STATUS, Step } from 'react-joyride';
+
+export default function OnboardingTour() {
+    const [run, setRun] = useState(false);
+
+    // Auto-start the tour if not seen this session
+    useEffect(() => {
+        const hasSeenTour = sessionStorage.getItem('anukriti_tour_seen');
+        if (!hasSeenTour) {
+            setRun(true);
+        }
+    }, []);
+
+    const steps: Step[] = [
+        {
+            target: '.tour-step-1-new-twin',
+            content: (
+                <div className="text-left space-y-2">
+                    <h3 className="text-lg font-bold text-accent-cyan">1. Initialize Artifact</h3>
+                    <p className="text-sm text-gray-300">Start here. Click this button to define the name and high-level description of the new digital twin you want to generate.</p>
+                </div>
+            ),
+            disableBeacon: true,
+            placement: 'bottom-end',
+        },
+        {
+            target: '.tour-step-2-projects',
+            content: (
+                <div className="text-left space-y-2">
+                    <h3 className="text-lg font-bold text-accent-cyan">2. Project Registry</h3>
+                    <p className="text-sm text-gray-300">All your active digital twins and simulations will be tracked here. Select an active project to continue the pipeline.</p>
+                </div>
+            ),
+            placement: 'top',
+        },
+        {
+            target: '.tour-step-3-nav',
+            content: (
+                <div className="text-left space-y-2">
+                    <h3 className="text-lg font-bold text-accent-cyan">3. Build Pipeline</h3>
+                    <p className="text-sm text-gray-300">Once a project is active, move sequentially down this rail. Start by generating requirements, then map the architecture, simulate telemetry, and finalize with a 3D Mesh.</p>
+                </div>
+            ),
+            placement: 'right',
+        },
+    ];
+
+    const handleJoyrideCallback = (data: CallBackProps) => {
+        const { status } = data;
+        const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
+
+        if (finishedStatuses.includes(status)) {
+            setRun(false);
+            sessionStorage.setItem('anukriti_tour_seen', 'true');
+        }
+    };
+
+    return (
+        <Joyride
+            steps={steps}
+            run={run}
+            continuous={true}
+            showProgress={true}
+            showSkipButton={true}
+            callback={handleJoyrideCallback}
+            styles={{
+                options: {
+                    arrowColor: '#0b0f14',
+                    backgroundColor: '#0b0f14',
+                    overlayColor: 'rgba(0, 0, 0, 0.7)',
+                    primaryColor: '#61dafb', // accent-cyan
+                    textColor: '#ffffff',
+                    zIndex: 1000,
+                },
+                tooltipContainer: {
+                    textAlign: 'left',
+                },
+                tooltip: {
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    padding: '20px',
+                },
+                buttonNext: {
+                    backgroundColor: 'rgba(97, 218, 251, 0.1)',
+                    color: '#61dafb',
+                    border: '1px solid rgba(97, 218, 251, 0.3)',
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                },
+                buttonBack: {
+                    color: '#9ca3af',
+                    marginRight: 10,
+                },
+                buttonSkip: {
+                    color: '#ff5555',
+                    fontSize: '14px',
+                }
+            }}
+        />
+    );
+}

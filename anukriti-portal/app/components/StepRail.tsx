@@ -19,7 +19,7 @@ export default function StepRail() {
     const { activeProject } = useProject();
 
     return (
-        <div className="w-64 h-screen border-r border-glass-border bg-glass backdrop-blur-xl flex flex-col p-4 flex-shrink-0 z-40 fixed left-0 top-0">
+        <div className="tour-step-3-nav w-64 h-screen border-r border-glass-border bg-glass backdrop-blur-xl flex flex-col p-4 flex-shrink-0 z-40 fixed left-0 top-0">
             {/* Header / Brand */}
             <div className="mb-10 px-2 flex items-center space-x-3">
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent-violet to-accent-cyan flex flex-shrink-0 items-center justify-center shadow-lg shadow-accent-cyan/20">

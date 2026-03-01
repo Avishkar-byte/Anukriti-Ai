@@ -4,6 +4,7 @@ import { useProject } from '../context/ProjectContext';
 import NewProjectModal from './NewProjectModal';
 import StepRail from './StepRail';
 import PrimaryButton from './ui/PrimaryButton';
+import OnboardingTour from './OnboardingTour';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     const { activeProject, projects, setActiveProject } = useProject();
@@ -21,7 +22,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     <div className="hidden md:flex items-center space-x-4 pointer-events-auto">
                         {/* Project Selector */}
                         {projects.length > 0 && (
-                            <div className="bg-glass backdrop-blur-md border border-glass-border rounded-xl shadow-lg hover:border-white/20 transition-colors">
+                            <div className="tour-step-2-projects bg-glass backdrop-blur-md border border-glass-border rounded-xl shadow-lg hover:border-white/20 transition-colors">
                                 <select
                                     value={activeProject?.project_id || ''}
                                     onChange={(e) => {
@@ -43,7 +44,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         <PrimaryButton
                             variant="solid"
                             onClick={() => setShowNewProject(true)}
-                            className="text-sm shadow-xl"
+                            className="tour-step-1-new-twin text-sm shadow-xl"
                         >
                             + New Digital Twin
                         </PrimaryButton>
@@ -56,7 +57,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </div>
             </main>
 
-            {/* Modals */}
+            {/* Modals & Overlays */}
+            <OnboardingTour />
             <NewProjectModal isOpen={showNewProject} onClose={() => setShowNewProject(false)} />
         </div>
     );
