@@ -136,7 +136,7 @@ export default function DigitalTwins() {
                             {generating3D ? (
                                 <><span className="w-4 h-4 border-2 border-status-warning/30 border-t-status-warning rounded-full animate-spin mr-2" /> Compiling...</>
                             ) : (
-                                <><Box size={16} className="mr-2" /> Mesh View</>
+                                <><Box size={16} className="mr-2" /> 3D View</>
                             )}
                             {modelSpec && <span className="ml-2 w-1.5 h-1.5 bg-status-warning rounded-full shadow-[0_0_5px_rgba(255,184,108,0.8)]"></span>}
                         </button>
