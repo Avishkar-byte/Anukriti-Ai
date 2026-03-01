@@ -228,6 +228,14 @@ async def debug_projects():
     return Response(content="\n".join(output_lines), media_type="text/plain")
 
 
+@app.delete("/admin/clear-projects")
+async def clear_projects():
+    """Admin: clear all in-memory projects (flushes corrupted NaN state)."""
+    count = len(projects)
+    projects.clear()
+    return {"cleared": count, "status": "ok"}
+
+
 # ──────────────────────────────────────────
 # Workflow Endpoints (now with project store)
 # ──────────────────────────────────────────
