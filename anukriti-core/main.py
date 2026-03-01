@@ -28,25 +28,30 @@ from core.training.pipeline import TrainingPipeline
 from core.viz.bridge import router as viz_router
 from core.viz.model_generator import DeviceModelGenerator
 
-import json
-
-# ──────────────────────────────────────────
-# Custom JSON encoder: replace NaN/Inf with null globally
-# ──────────────────────────────────────────
-class SafeJSONEncoder(json.JSONEncoder):
-    def encode(self, o):
-        return super().encode(self._clean(o))
-
-    def _clean(self, obj):
-        if isinstance(obj, float):
-            if math.isnan(obj) or math.isinf(obj):
-                return None
-            return obj
-        if isinstance(obj, dict):
-            return {k: self._clean(v) for k, v in obj.items()}
-        if isinstance(obj, list):
-            return [self._clean(v) for v in obj]
+def _clean_for_json(obj):
+    """Recursively replace NaN/Inf floats with None for JSON-safe serialization."""
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
         return obj
+    if isinstance(obj, dict):
+        return {k: _clean_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_clean_for_json(v) for v in obj]
+    # Handle numpy float types (float32, float64, etc.)
+    try:
+        if hasattr(obj, '__float__') and type(obj).__module__ == 'numpy':
+            f = float(obj)
+            return None if (math.isnan(f) or math.isinf(f)) else f
+    except Exception:
+        pass
+    return obj
+
+
+def safe_json_dumps(obj) -> str:
+    """Clean NaN/Inf and serialize to valid JSON string."""
+    cleaned = _clean_for_json(obj)
+    return json.dumps(cleaned)
 
 
 app = FastAPI(
@@ -183,8 +188,7 @@ async def list_projects():
     """List all projects (without heavy sim data)."""
     try:
         result = [_safe_project_summary(p) for p in projects.values()]
-        # Use our safe encoder to handle any residual NaN/Inf
-        safe_json = SafeJSONEncoder().encode(result)
+        safe_json = safe_json_dumps(result)
         return Response(content=safe_json, media_type="application/json")
     except Exception as e:
         traceback.print_exc()
@@ -197,7 +201,7 @@ async def get_project(project_id: str):
     if project_id not in projects:
         raise HTTPException(404, "Project not found")
     try:
-        safe_json = SafeJSONEncoder().encode(sanitize_floats(projects[project_id]))
+        safe_json = safe_json_dumps(sanitize_floats(projects[project_id]))
         return Response(content=safe_json, media_type="application/json")
     except Exception as e:
         traceback.print_exc()
