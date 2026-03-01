@@ -208,6 +208,26 @@ async def get_project(project_id: str):
         raise HTTPException(500, str(e))
 
 
+@app.get("/debug-projects")
+async def debug_projects():
+    """Debug endpoint: returns plain text traceback showing exactly what fails during project serialization."""
+    import io
+    output_lines = ["=== DEBUG PROJECTS ==="]
+    output_lines.append(f"Total projects in store: {len(projects)}")
+    for pid, p in projects.items():
+        output_lines.append(f"\n--- Project {pid} ---")
+        for key, val in p.items():
+            try:
+                cleaned = _clean_for_json(val)
+                json.dumps(cleaned)
+                output_lines.append(f"  {key}: OK")
+            except Exception as e:
+                output_lines.append(f"  {key}: FAILED - {e}")
+                output_lines.append(f"    type: {type(val)}")
+                output_lines.append(f"    value[:200]: {str(val)[:200]}")
+    return Response(content="\n".join(output_lines), media_type="text/plain")
+
+
 # ──────────────────────────────────────────
 # Workflow Endpoints (now with project store)
 # ──────────────────────────────────────────
