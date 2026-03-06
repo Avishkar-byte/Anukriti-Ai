@@ -150,26 +150,36 @@ export default function DeviceModelViewer({ modelSpec }: Props) {
                     // Center and scale the mesh
                     const box = new THREE.Box3().setFromObject(object);
                     const size = box.getSize(new THREE.Vector3());
-                    const maxDim = Math.max(size.x, size.y, size.z);
-                    const scale = 10 / maxDim; // Fit within 10 units
+                    const maxDimModel = Math.max(size.x, size.y, size.z, 0.001);
+                    const scale = 10 / maxDimModel; // Fit within 10 units
                     object.scale.set(scale, scale, scale);
 
                     // Recalculate bounding box after scaling
                     box.setFromObject(object);
                     const center = box.getCenter(new THREE.Vector3());
                     object.position.sub(center); // Center at origin
-                    object.position.y += Math.abs(box.min.y); // Place exactly on the grid
 
-                    // Enhance existing materials
+                    // Slightly lift it above the grid visually
+                    object.position.y += Math.abs(box.min.y) + 0.5;
+
+                    // Enhance existing materials or provide fallback
                     object.traverse((child: any) => {
                         if (child instanceof THREE.Mesh) {
                             child.castShadow = true;
                             child.receiveShadow = true;
 
-                            // If material exists, just tweak it to look better in our lighting
                             if (child.material) {
+                                // Sometimes meshes from AI have crazy metalness causing black rendering
+                                child.material.metalness = Math.min(0.5, child.material.metalness || 0);
+                                child.material.roughness = Math.max(0.5, child.material.roughness || 0.5);
                                 child.material.envMapIntensity = 1.0;
                                 child.material.needsUpdate = true;
+                            } else {
+                                child.material = new THREE.MeshStandardMaterial({
+                                    color: 0x88ccff,
+                                    roughness: 0.5,
+                                    metalness: 0.2
+                                });
                             }
                         }
                     });

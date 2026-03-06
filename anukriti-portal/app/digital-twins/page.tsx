@@ -259,11 +259,13 @@ export default function DigitalTwins() {
                         <div className="absolute top-5 left-5 z-10 bg-deep-graphite/40 backdrop-blur-xl border border-glass-border px-4 py-2 rounded-xl text-xs flex items-center shadow-lg">
                             <div className="w-2 h-2 rounded-full bg-status-success animate-pulse mr-3 shadow-[0_0_8px_rgba(80,250,123,0.8)]" />
                             <span className="text-white font-medium tracking-wide">
-                                {viewMode === 'graph'
-                                    ? `Topology Rendering`
-                                    : viewMode === 'model'
-                                        ? `Mesh Rendering`
-                                        : `Static Preset Active`
+                                {generating3D
+                                    ? `Cloud Compilation Active`
+                                    : viewMode === 'graph'
+                                        ? `Topology Rendering`
+                                        : viewMode === 'model'
+                                            ? `Mesh Rendering`
+                                            : `Static Preset Active`
                                 }
                             </span>
                             <span className="mx-3 text-glass-border">|</span>
@@ -301,7 +303,13 @@ export default function DigitalTwins() {
                                     transition={{ duration: 0.5 }}
                                     className="w-full h-full"
                                 >
-                                    {viewMode === 'graph' ? (
+                                    {generating3D ? (
+                                        <div className="w-full h-full flex flex-col items-center justify-center bg-deep-graphite/40 backdrop-blur-sm rounded-xl z-20">
+                                            <div className="w-12 h-12 border-2 border-status-warning border-t-transparent rounded-full animate-spin mb-4 shadow-[0_0_15px_rgba(255,184,108,0.5)]" />
+                                            <p className="text-status-warning font-mono text-xs uppercase tracking-widest font-bold">Compiling 3D Mesh...</p>
+                                            <p className="text-gray-400 text-[10px] mt-2 max-w-xs text-center italic">This may take upto 5mins</p>
+                                        </div>
+                                    ) : viewMode === 'graph' ? (
                                         <DynamicGraphViewer
                                             nodes={graphNodes}
                                             edges={graphEdges}

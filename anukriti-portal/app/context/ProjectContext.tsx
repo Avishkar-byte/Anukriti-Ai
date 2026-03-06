@@ -273,7 +273,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
             const res = await fetch(`${API_BASE}/workflow/train-twin`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(activeProject.requirements)
+                body: JSON.stringify({
+                    project_id: activeProject.project_id,
+                    device_name: activeProject.name,
+                    requirements: activeProject.requirements?.requirements || activeProject.requirements
+                })
             });
             const data = await res.json();
             await refreshActiveProject(activeProject.project_id);

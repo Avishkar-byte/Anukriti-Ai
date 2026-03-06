@@ -293,7 +293,9 @@ export default function Simulation() {
                             icon={training ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin block" /> : <Brain size={16} />}
                             className={training || simRunning || loading || !simResult ? 'opacity-50 cursor-not-allowed' : 'bg-accent-violet hover:bg-accent-violet/80 text-white shadow-[0_0_15px_rgba(155,124,255,0.3)]'}
                         >
-                            {training ? `Training DL ${Math.floor(trainProgress)}%` : (modelData ? 'Retrain ML Twin' : 'Train Surrogate Twin')}
+                            {training
+                                ? (trainProgress >= 90 ? 'Running (3-4 mins...)' : `Training DL ${Math.floor(trainProgress)}%`)
+                                : (modelData ? 'Retrain ML Twin' : 'Train Surrogate Twin')}
                         </PrimaryButton>
                     </div>
                 </header>
@@ -512,9 +514,18 @@ export default function Simulation() {
                                             trainLog.map((line, i) => renderLogLine(line, i))
                                         )}
                                         {training && (
-                                            <div className="flex items-center text-accent-cyan mt-4 animate-pulse">
-                                                <span className="mr-3 text-[10px] font-bold">❯</span>
-                                                <span className="w-1.5 h-3 bg-accent-cyan inline-block rounded-sm"></span>
+                                            <div className="flex flex-col mt-4">
+                                                <div className="flex items-center text-accent-cyan animate-pulse">
+                                                    <span className="mr-3 text-[10px] font-bold">❯</span>
+                                                    <span className="w-1.5 h-3 bg-accent-cyan inline-block rounded-sm"></span>
+                                                </div>
+                                                {trainProgress >= 90 && (
+                                                    <div className="mt-8 flex flex-col items-center justify-center p-6 bg-accent-violet/5 border border-accent-violet/20 rounded-xl">
+                                                        <div className="w-8 h-8 border-2 border-accent-violet border-t-transparent rounded-full animate-spin mb-3"></div>
+                                                        <p className="text-accent-violet font-bold text-xs uppercase tracking-widest mb-1">Running</p>
+                                                        <p className="text-muted-text text-[10px] italic">This may take up to 3-4 mins</p>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
