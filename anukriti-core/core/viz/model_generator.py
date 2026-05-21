@@ -74,9 +74,23 @@ class DeviceModelGenerator:
     def generate(
         self, device_name: str, components: List[Dict], edges: List[Dict]
     ) -> Dict[str, Any]:
-        """Generate 3D model using Meshy AI in a non-blocking way."""
-        if not self.llm_enabled or not MESHY_API_KEY:
-            return {"device_name": device_name, "mesh_url": None, "error": "LLM or Meshy API key missing"}
+        """Generate 3D model using pre-feeded dummy response because Meshy key is expired."""
+        
+        # Temporarily return a static dummy 3D model URL
+        dummy_result = {
+            "device_name": device_name,
+            "mesh_url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb",
+            "prompt_used": "Pre-feeded dummy 3D model",
+            "format": "glb",
+            "status": "completed"
+        }
+        
+        # Save to cache so the UI gets it instantly
+        cache_key = self._get_cache_key(device_name, components, edges)
+        self.cache[cache_key] = dummy_result
+        self._save_cache()
+        
+        return {"status": "processing", "device_name": device_name}
 
         # Check Cache
         cache_key = self._get_cache_key(device_name, components, edges)
